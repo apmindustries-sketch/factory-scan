@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Production Cutting</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+
+:root {
+  --bg:        #0B1220;
+  --surface:   #111927;
+  --surface2:  #18243A;
+  --border:    #1E2E45;
+  --border2:   #243348;
+  --accent:    #F0A500;
+  --accent-lo: rgba(240,165,0,.12);
+  --txt:       #D8E4F0;
+  --txt2:      #6B8CAE;
+  --txt3:      #445F7A;
+  --green:     #22C55E;
+  --green-lo:  rgba(34,197,94,.12);
+  --red:       #F05050;
+  --red-lo:    rgba(240,80,80,.12);
+  --radius:    12px;
+  --mono: 'SFMono-Regular','Consolas','Liberation Mono',monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--txt);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-header {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(11,18,32,.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px 0;
+}
+.header-inner { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.header-icon { width: 22px; height: 22px; color: var(--accent); flex-shrink: 0; }
+.app-header h1 { font-size: 16px; font-weight: 600; color: var(--txt); letter-spacing: -.01em; }
+
+.mode-tabs { display: flex; gap: 8px; padding-bottom: 12px; }
+.mode-tab {
+  flex: 1; background: var(--surface2);
+  border: 1.5px solid var(--border2); color: var(--txt2);
+  border-radius: 8px; font-size: 13px; font-weight: 700;
+  padding: 10px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mode-tab.active { background: var(--accent); border-color: var(--accent); color: #000; }
+
+.step-track { display: flex; align-items: center; padding-bottom: 12px; }
+.step-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--txt3); }
+.step-item.active  { color: var(--accent); }
+.step-item.done    { color: var(--green); }
+.step-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.step-item.active .step-dot { background: var(--accent); color: #000; }
+.step-item.done   .step-dot { background: var(--green);  color: #000; }
+.step-line { flex: 1; height: 1px; background: var(--border2); margin: 0 8px; min-width: 16px; }
+
+.app-main {
+  max-width: 520px; margin: 0 auto;
+  padding: 20px 16px 40px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.card.card-locked { opacity: .45; pointer-events: none; }
+.card.card-ready  { opacity: 1; pointer-events: auto; }
+.card.card-ok     { border-color: rgba(34,197,94,.4); opacity: 1; pointer-events: none; }
+.card.card-err    { border-color: rgba(240,80,80,.35); opacity: 1; }
+
+.card-eyebrow {
+  font-size: 10px; font-weight: 700;
+  color: var(--accent); letter-spacing: .1em;
+  text-transform: uppercase; margin-bottom: 14px;
+}
+
+.scan-row { display: flex; gap: 10px; align-items: stretch; }
+.code-input {
+  flex: 1; background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: 8px; color: var(--txt);
+  font-family: var(--mono); font-size: 14px;
+  padding: 12px 14px; outline: none;
+  letter-spacing: .04em; -webkit-appearance: none;
+  min-width: 0;
+}
+.code-input:focus { border-color: var(--accent); }
+.code-input::placeholder { color: var(--txt3); }
+.code-input:disabled { opacity: .4; }
+select.code-input { appearance: none; }
+
+.scan-btn {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--accent); color: #000;
+  border: none; border-radius: 8px;
+  font-size: 13px; font-weight: 700;
+  padding: 0 16px; cursor: pointer; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 48px;
+}
+.scan-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+.scan-btn:active { opacity: .8; }
+.scan-btn:disabled { opacity: .35; pointer-events: none; }
+
+.status-row { min-height: 20px; margin-top: 10px; font-size: 12.5px; display: flex; align-items: center; gap: 6px; }
+.status-loading { color: var(--txt2); animation: pulse 1.2s infinite; }
+.status-ok  { color: var(--green); }
+.status-err { color: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.validation-banner {
+  border-radius: var(--radius); padding: 16px 20px;
+  font-size: 14px; font-weight: 600;
+  display: flex; align-items: flex-start; gap: 12px; line-height: 1.4;
+}
+.validation-banner:empty { display: none; }
+.validation-banner.ok  { background: var(--green-lo); color: var(--green); border: 1px solid rgba(34,197,94,.25); }
+.validation-banner.err { background: var(--red-lo);   color: var(--red);   border: 1px solid rgba(240,80,80,.25); }
+.banner-icon { font-size: 20px; flex-shrink: 0; margin-top: -1px; }
+
+.entry-form {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  overflow: hidden;
+  animation: slideIn .25s ease;
+}
+@keyframes slideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+.entry-form-title {
+  font-size: 11px; font-weight: 700;
+  color: var(--accent); letter-spacing: .1em;
+  text-transform: uppercase; padding: 14px 16px 0;
+}
+.field-row { display: flex; align-items: center; padding: 13px 16px; gap: 12px; border-bottom: 1px solid var(--border); }
+.field-row:last-of-type { border-bottom: none; }
+.field-label { flex: 0 0 100px; font-size: 12.5px; color: var(--txt2); }
+.field-value { flex: 1; display: flex; align-items: center; }
+.field-readonly { font-size: 13px; color: var(--txt); font-family: var(--mono); }
+.field-readonly.accent { color: var(--accent); font-weight: 700; }
+.field-select {
+  flex: 1; background: transparent; border: none;
+  color: var(--txt); font-size: 13px;
+  font-family: var(--sans); outline: none;
+  -webkit-appearance: none; appearance: none; cursor: pointer;
+}
+.field-select option { background: #111927; }
+.stepper { display: flex; align-items: center; flex: 1; gap: 8px; }
+.stepper-val {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--txt); font-family: var(--mono); font-size: 14px;
+  -webkit-appearance: none; min-width: 0;
+}
+.stepper-val::-webkit-inner-spin-button,
+.stepper-val::-webkit-outer-spin-button { -webkit-appearance: none; }
+.stepper-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--txt); font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+}
+.stepper-btn:active { background: var(--border2); }
+.entry-actions { display: flex; gap: 10px; padding: 14px 16px; border-top: 1px solid var(--border2); }
+.btn-cancel {
+  flex: 1; background: none; border: 1.5px solid var(--border2);
+  color: var(--txt2); border-radius: 8px;
+  font-size: 13px; font-weight: 600; padding: 12px; cursor: pointer;
+}
+.btn-save {
+  flex: 2; background: var(--accent); color: #000;
+  border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 700; padding: 12px; cursor: pointer;
+}
+.btn-save:disabled { opacity: .35; pointer-events: none; }
+.btn-save:active { opacity: .8; }
+
+.move-summary { margin-top: 12px; }
+.move-summary:empty { display: none; }
+.move-summary table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.move-summary td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.move-summary td:first-child { color: var(--txt3); width: 40%; text-transform: uppercase; font-size: 10px; letter-spacing: .06em; }
+.move-summary td:last-child { color: var(--txt); font-family: var(--mono); }
+.move-summary .hl { color: var(--accent) !important; font-weight: 700; }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--surface); border: 1px solid var(--border2);
+  color: var(--txt); font-size: 13px;
+  padding: 12px 20px; border-radius: 24px;
+  white-space: nowrap; z-index: 200;
+  opacity: 0; transition: opacity .2s; pointer-events: none;
+}
+.toast.ok  { border-color: rgba(34,197,94,.4); color: var(--green); }
+.toast.err { border-color: rgba(240,80,80,.4);  color: var(--red); }
+.toast.show { opacity: 1; }
+
+.scanner-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.92);
+  display: flex; align-items: flex-end;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s;
+}
+.scanner-overlay.open { opacity: 1; pointer-events: auto; }
+.scanner-box {
+  width: 100%; background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  padding: 20px 20px 40px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.scanner-top { display: flex; align-items: center; justify-content: space-between; }
+.scanner-top span { font-size: 15px; font-weight: 700; color: var(--txt); }
+.scanner-top button {
+  background: var(--surface2); border: none; color: var(--txt2);
+  width: 32px; height: 32px; border-radius: 50%;
+  font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.scanner-viewport {
+  position: relative; width: 100%;
+  aspect-ratio: 1; border-radius: 12px;
+  overflow: hidden; background: #000;
+}
+#scanVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#scanCanvas { display: none; }
+.scan-frame { position: absolute; inset: 24px; pointer-events: none; }
+.corner { position: absolute; width: 24px; height: 24px; border-color: var(--accent); border-style: solid; }
+.corner.tl { top: 0; left: 0;  border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+.corner.tr { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+.corner.bl { bottom: 0; left: 0;  border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+.corner.br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+.scan-beam {
+  position: absolute; left: 0; right: 0;
+  height: 2px; background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  top: 0; animation: beamScan 2s ease-in-out infinite;
+}
+@keyframes beamScan { 0% { top: 0%; } 50% { top: 100%; } 100% { top: 0%; } }
+.scan-hint { text-align: center; color: var(--txt2); font-size: 13px; }
+
+/* Galv return rack info box */
+.rack-info {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--surface2); border-radius: 8px;
+  font-size: 12.5px; color: var(--txt2);
+  display: flex; flex-wrap: wrap; gap: 8px 20px;
+}
+.rack-info span strong { color: var(--txt); }
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-beam { animation: none; top: 50%; }
+}
+</style>
+</head>
+<body>
+
+<!-- Hidden fallback input — opens native camera app when getUserMedia is blocked -->
+<input type="file" id="photoInput" accept="image/*" capture="environment"
+       style="display:none" onchange="App.onPhotoCapture(this)">
+
+<!-- CAMERA SCANNER OVERLAY -->
+<div class="scanner-overlay" id="scanOverlay">
+  <div class="scanner-box">
+    <div class="scanner-top">
+      <span id="scanLabel">Scan QR Code</span>
+      <button onclick="App.stopScan()">✕</button>
+    </div>
+    <div class="scanner-viewport">
+      <video id="scanVideo" playsinline autoplay muted></video>
+      <canvas id="scanCanvas"></canvas>
+      <div class="scan-frame">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <div class="scan-beam"></div>
+      </div>
+    </div>
+    <p class="scan-hint">Hold steady — detects automatically</p>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="header-inner">
+    <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>
+    </svg>
+    <h1>Production Cutting</h1>
+  </div>
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tabCut"  onclick="App.setMode('cut')">✂ Cutting</button>
+    <button class="mode-tab" id="tabMove" onclick="App.setMode('move')">➜ Process Move</button>
+    <button class="mode-tab" id="tabGalv" onclick="App.setMode('galv')">⚖ Galv Return</button>
+  </div>
+  <div class="step-track" id="stepTrack">
+    <div class="step-item active" id="st1"><span class="step-dot">1</span><span>PO Item</span></div>
+    <div class="step-line"></div>
+    <div class="step-item" id="st2"><span class="step-dot">2</span><span>Bundle</span></div>
+    <div class="step-line"></div>
+    <div class="step-item" id="st3"><span class="step-dot">3</span><span>Validate</span></div>
+  </div>
+</header>
+
+<main class="app-main">
+
+<!-- ══════════ CUTTING MODE ══════════ -->
+<div id="cutMode">
+
+  <section class="card" id="poCard">
+    <div class="card-eyebrow">Step 1 — PO Item QR</div>
+    <div class="scan-row">
+      <input id="poInput" class="code-input" type="text"
+             placeholder="Scan or type UID" autocomplete="off"
+             autocorrect="off" autocapitalize="characters" spellcheck="false"
+             oninput="App.onPOInput(this.value)">
+      <button class="scan-btn" id="poScanBtn" onclick="App.startScan('po')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+          <rect x="7" y="7" width="10" height="10" rx="1"/>
+        </svg>
+        Scan
+      </button>
+    </div>
+    <div class="status-row" id="poStatus"></div>
+  </section>
+
+  <section class="card card-locked" id="bundleCard">
+    <div class="card-eyebrow">Step 2 — Bundle QR</div>
+    <div class="scan-row">
+      <input id="bundleInput" class="code-input" type="text"
+             placeholder="B000001" autocomplete="off"
+             autocorrect="off" autocapitalize="characters" spellcheck="false"
+             oninput="App.onBundleInput(this.value)" disabled>
+      <button class="scan-btn" id="bundleScanBtn" onclick="App.startScan('bundle')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+          <rect x="7" y="7" width="10" height="10" rx="1"/>
+        </svg>
+        Scan
+      </button>
+    </div>
+    <div class="status-row" id="bundleStatus"></div>
+  </section>
+
+  <div class="validation-banner" id="validBanner"></div>
+
+  <!-- INLINE ENTRY FORM -->
+  <section class="entry-form" id="entryForm" style="display:none">
+    <div class="entry-form-title">ITEM Form</div>
+
+    <div class="field-row" style="display:none">
+      <div class="field-label">Unique ID</div>
+      <div class="field-value"><span class="field-readonly accent" id="fUid">&mdash;</span></div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Qty in Kg</div>
+      <div class="field-value">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="fQtyKg" value="0.000" step="0.001" min="0" oninput="Entry.onQtyKgChange()">
+          <button class="stepper-btn" onclick="Entry.step('fQtyKg',-0.001,3)">&#8722;</button>
+          <button class="stepper-btn" onclick="Entry.step('fQtyKg', 0.001,3)">&#43;</button>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Qty in pcs</div>
+      <div class="field-value">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="fQtyPcs" value="0" step="1" min="0" oninput="Entry.onQtyPcsChange()">
+          <button class="stepper-btn" onclick="Entry.step('fQtyPcs',-1,0);Entry.onQtyPcsChange()">&#8722;</button>
+          <button class="stepper-btn" onclick="Entry.step('fQtyPcs', 1,0);Entry.onQtyPcsChange()">&#43;</button>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Process</div>
+      <div class="field-value"><select class="field-select" id="fProcess" onchange="Entry.onProcessChange()"></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Done By</div>
+      <div class="field-value"><select class="field-select" id="fDoneBy" onchange="Entry.onDoneByChange()"></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Rod Wt (kg)</div>
+      <div class="field-value">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="fRodWt" value="0.000" step="0.001" min="0" oninput="Entry.onRodWtChange()">
+          <button class="stepper-btn" onclick="Entry.step('fRodWt',-0.01,3);Entry.onRodWtChange()">&#8722;</button>
+          <button class="stepper-btn" onclick="Entry.step('fRodWt', 0.01,3);Entry.onRodWtChange()">&#43;</button>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Rack No</div>
+      <div class="field-value" id="rackField"></div>
+    </div>
+    <div class="field-row" style="display:none">
+      <div class="field-label">Bundle No</div>
+      <div class="field-value"><span class="field-readonly" id="fBundle">&mdash;</span></div>
+    </div>
+    <div class="field-row" style="display:none">
+      <div class="field-label">Date &amp; Time</div>
+      <div class="field-value"><span class="field-readonly" id="fDateTime">&mdash;</span></div>
+    </div>
+
+    <div class="entry-actions">
+      <button class="btn-cancel" onclick="Entry.cancel()">Cancel</button>
+      <button class="btn-save" id="btnSave" onclick="Entry.save()">Save</button>
+    </div>
+  </section>
+
+</div><!-- /cutMode -->
+
+<!-- ══════════ PROCESS MOVE MODE ══════════ -->
+<div id="moveMode" style="display:none">
+
+  <section class="card" id="mBundleCard">
+    <div class="card-eyebrow">Step 1 — Scan Bundle Movement Tag</div>
+    <div class="scan-row">
+      <input id="mBundleInput" class="code-input" type="text"
+             placeholder="Scan tag or type tag code" autocomplete="off"
+             inputmode="numeric"
+             autocorrect="off" autocapitalize="characters" spellcheck="false"
+             oninput="Move.onBundleInput(this.value)">
+      <button class="scan-btn" onclick="App.startScan('mbundle')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+          <rect x="7" y="7" width="10" height="10" rx="1"/>
+        </svg>
+        Scan
+      </button>
+    </div>
+    <div class="status-row" id="mBundleStatus"></div>
+    <div class="move-summary" id="mSummary"></div>
+  </section>
+
+  <section class="card card-locked" id="mProcessCard">
+    <div class="card-eyebrow">Step 2 — Scan Process QR</div>
+    <div class="scan-row">
+      <select class="code-input" id="mProcess" onchange="Move.onProcessPicked()"></select>
+      <button class="scan-btn" id="mProcessScanBtn" onclick="App.startScan('mprocess')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+          <rect x="7" y="7" width="10" height="10" rx="1"/>
+        </svg>
+        Scan
+      </button>
+    </div>
+    <div class="status-row" id="mProcessStatus"></div>
+
+    <div class="field-row">
+      <div class="field-label">Rack No</div>
+      <div class="field-value">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="mRackNo" value="0" step="1" min="0">
+          <button class="stepper-btn" onclick="Move.step(-1)">&#8722;</button>
+          <button class="stepper-btn" onclick="Move.step(1)">&#43;</button>
+        </div>
+      </div>
+    </div>
+    <div class="field-row" id="mGalvRow" style="display:none">
+      <div class="field-label">Galvanizer</div>
+      <div class="field-value">
+        <select class="field-select" id="mGalvanizer" onchange="Move.onGalvChange()"></select>
+      </div>
+    </div>
+    <div class="field-row" id="mDCRow" style="display:none">
+      <div class="field-label">DC / Challan No</div>
+      <div class="field-value">
+        <input class="stepper-val" style="text-align:left" type="text" id="mDCNo" placeholder="e.g. DC-001">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Done By</div>
+      <div class="field-value"><select class="field-select" id="mDoneBy" onchange="Move.onDoneByChange()"></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Remarks</div>
+      <div class="field-value">
+        <input class="stepper-val" style="text-align:left" type="text" id="mRemarks" placeholder="optional">
+      </div>
+    </div>
+
+    <div class="entry-actions">
+      <button class="btn-cancel" onclick="Move.reset()">Cancel</button>
+      <button class="btn-save" id="mBtnSave" onclick="Move.save()">Save Move</button>
+    </div>
+  </section>
+
+</div><!-- /moveMode -->
+
+<!-- ══════════ GALV RETURN MODE ══════════ -->
+<div id="galvMode" style="display:none">
+
+  <!-- Card 1: Order / Item / Challan selection -->
+  <section class="card" id="grOrderCard">
+    <div class="card-eyebrow">Galvanizing / Plating Return</div>
+    <div class="field-row">
+      <div class="field-label">Order No</div>
+      <div class="field-value">
+        <select class="field-select" id="grOrder" onchange="GalvReturn.onOrderChange()">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row" id="grUIDRow" style="display:none">
+      <div class="field-label">Item (UID)</div>
+      <div class="field-value">
+        <select class="field-select" id="grUID" onchange="GalvReturn.onUIDChange()">
+          <option value="">— Select Order first —</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row" id="grChallanRow" style="display:none">
+      <div class="field-label">Sent Challan</div>
+      <div class="field-value">
+        <select class="field-select" id="grChallan" onchange="GalvReturn.onChallanChange()">
+          <option value="">Loading challans…</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- Card 2: Return Details -->
+  <section class="card card-locked" id="grReturnCard">
+    <div class="card-eyebrow">Return Details</div>
+    <div id="grSentInfo" style="margin-bottom:14px;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:12.5px;color:var(--txt2);display:none"></div>
+    <div class="field-row">
+      <div class="field-label">Galv DC No</div>
+      <div class="field-value">
+        <input class="stepper-val" style="text-align:left" type="text" id="grGalvDC" placeholder="Galvanizer's DC number">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Returned Pcs</div>
+      <div class="field-value">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="grRetPcs" value="0" step="1" min="0">
+          <button class="stepper-btn" onclick="GalvReturn.stepRetPcs(-1)">&#8722;</button>
+          <button class="stepper-btn" onclick="GalvReturn.stepRetPcs(1)">&#43;</button>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Returned Kg</div>
+      <div class="field-value">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="grRetKg" value="0.000" step="0.001" min="0">
+          <button class="stepper-btn" onclick="GalvReturn.stepRetKg(-0.1)">&#8722;</button>
+          <button class="stepper-btn" onclick="GalvReturn.stepRetKg(0.1)">&#43;</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Card 3: New Racks -->
+  <section class="card card-locked" id="grRacksCard">
+    <div class="card-eyebrow">New Racks Received</div>
+    <div class="field-row">
+      <div class="field-label">Rack No</div>
+      <div class="field-value">
+        <div class="stepper">
+          <input class="stepper-val" type="text" id="grNewRack" value="1G" style="letter-spacing:.06em">
+          <button class="stepper-btn" onclick="GalvReturn.stepRack(-1)">&#8722;</button>
+          <button class="stepper-btn" onclick="GalvReturn.stepRack(1)">&#43;</button>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Pcs</div>
+      <div class="field-value">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="grRackPcs" value="0" step="1" min="0">
+          <button class="stepper-btn" onclick="GalvReturn.stepRackPcs(-1)">&#8722;</button>
+          <button class="stepper-btn" onclick="GalvReturn.stepRackPcs(1)">&#43;</button>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Kg</div>
+      <div class="field-value">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="grRackKg" value="0.000" step="0.001" min="0">
+          <button class="stepper-btn" onclick="GalvReturn.stepRackKg(-0.1)">&#8722;</button>
+          <button class="stepper-btn" onclick="GalvReturn.stepRackKg(0.1)">&#43;</button>
+        </div>
+      </div>
+    </div>
+    <div style="padding:0 20px 14px">
+      <button class="btn-save" style="width:100%;padding:12px" onclick="GalvReturn.addRack()">+ Add Rack</button>
+    </div>
+    <div id="grRackList" style="border-top:1px solid var(--border)"></div>
+    <div id="grTally" style="padding:12px 20px;font-size:12.5px;color:var(--txt2)"></div>
+  </section>
+
+  <!-- Card 4: Done By + Save -->
+  <section class="card card-locked" id="grSaveCard">
+    <div class="field-row" style="border:none">
+      <div class="field-label">Done By</div>
+      <div class="field-value">
+        <select class="field-select" id="grDoneBy">
+          <option value="">— Select —</option>
+        </select>
+      </div>
+    </div>
+    <div class="entry-actions">
+      <button class="btn-cancel" onclick="GalvReturn.reset()">Cancel</button>
+      <button class="btn-save" id="grBtnSave" onclick="GalvReturn.save()" disabled>Save Return</button>
+    </div>
+  </section>
+
+</div><!-- /galvMode -->
+
+  <div class="toast" id="toast"></div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════════
+const API_URL = 'https://script.google.com/macros/s/AKfycbzwczRq8RgUAoR6TPP-1yy77JE-fJYbC3vcNq7vW2gapr8o-YOxU0wT30lHz-raNL8K/exec';
+
+async function apiGet(params) {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(API_URL + '?' + qs);
+  if (!res.ok) throw new Error('Server error ' + res.status);
+  return res.json();
+}
+
+async function apiPost(body) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('Server error ' + res.status);
+  return res.json();
+}
+
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// App — scanning, mode switching, cutting flow
+// ═══════════════════════════════════════════════════════════════════
+const App = (() => {
+
+  let state = {
+    scanTarget:  null,
+    videoStream: null,
+    scanning:    false,
+    po:          null,
+    bundle:      null,
+    valid:       false,
+  };
+
+  const el = id => document.getElementById(id);
+
+  async function startScan(target) {
+    state.scanTarget = target;
+    el('scanLabel').textContent =
+      target === 'po'       ? 'Scan P.O. Item QR' :
+      target === 'bundle'   ? 'Scan Bundle QR' :
+      target === 'mbundle'  ? 'Scan Movement Tag' :
+                              'Scan Process QR';
+    el('scanOverlay').classList.add('open');
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
+        audio: false
+      });
+      state.videoStream = stream;
+      state.scanning    = true;
+      const video = el('scanVideo');
+      video.srcObject = stream;
+      await video.play();
+      requestAnimationFrame(scanFrame);
+    } catch (err) {
+      console.error('Live camera failed, falling back to photo capture:', err);
+      stopScan();
+      el('photoInput').click();
+    }
+  }
+
+  function scanFrame() {
+    if (!state.scanning) return;
+    const video  = el('scanVideo');
+    const canvas = el('scanCanvas');
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+      if (code && code.data.trim()) {
+        stopScan();
+        handleScannedCode(code.data.trim());
+        return;
+      }
+    }
+    requestAnimationFrame(scanFrame);
+  }
+
+  function stopScan() {
+    state.scanning = false;
+    if (state.videoStream) {
+      state.videoStream.getTracks().forEach(t => t.stop());
+      state.videoStream = null;
+    }
+    el('scanOverlay').classList.remove('open');
+  }
+
+  function onPhotoCapture(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const sizes = [800, 1200, 500];
+      let code = null;
+      for (const maxW of sizes) {
+        const scale  = Math.min(1, maxW / img.width);
+        const canvas = el('scanCanvas');
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        code = jsQR(d.data, d.width, d.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data.trim()) break;
+      }
+      if (code && code.data.trim()) handleScannedCode(code.data.trim());
+      else toast('No QR found in photo — try again.', 'err');
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); toast('Could not read photo.', 'err'); };
+    img.src = url;
+  }
+
+  function handleScannedCode(code) {
+    if (state.scanTarget === 'po') {
+      el('poInput').value = code;
+      fetchPODetails(code);
+    } else if (state.scanTarget === 'bundle') {
+      el('bundleInput').value = code;
+      fetchBundleDetails(code);
+    } else if (state.scanTarget === 'mbundle') {
+      el('mBundleInput').value = code;
+      Move.fetchState(code);
+    } else if (state.scanTarget === 'mprocess') {
+      Move.onProcessScanned(code);
+    }
+  }
+
+  function setMode(mode) {
+    el('cutMode').style.display   = mode === 'cut'  ? 'block' : 'none';
+    el('moveMode').style.display  = mode === 'move' ? 'block' : 'none';
+    el('galvMode').style.display  = mode === 'galv' ? 'block' : 'none';
+    el('stepTrack').style.display = mode === 'cut'  ? 'flex'  : 'none';
+    el('tabCut').className  = 'mode-tab' + (mode === 'cut'  ? ' active' : '');
+    el('tabMove').className = 'mode-tab' + (mode === 'move' ? ' active' : '');
+    el('tabGalv').className = 'mode-tab' + (mode === 'galv' ? ' active' : '');
+    if (mode === 'move') Move.init();
+    if (mode === 'galv') GalvReturn.init();
+  }
+
+  let poTimer, bundleTimer;
+  function onPOInput(val) {
+    clearTimeout(poTimer);
+    if (!val.trim()) { clearPO(); return; }
+    poTimer = setTimeout(() => fetchPODetails(val.trim()), 500);
+  }
+  function onBundleInput(val) {
+    clearTimeout(bundleTimer);
+    if (!val.trim()) { clearBundle(); return; }
+    bundleTimer = setTimeout(() => fetchBundleDetails(val.trim()), 500);
+  }
+
+  async function fetchPODetails(uid) {
+    setStatus('poStatus', 'loading', 'Looking up PO item…');
+    state.po = null;
+    resetValidation();
+    try {
+      const data = await apiGet({ api: 'po', uid: uid });
+      if (!data.found) {
+        setStatus('poStatus', 'err', data.message);
+        el('poCard').className = 'card card-err';
+        return;
+      }
+      state.po = data;
+      setStatus('poStatus', 'ok', '✓ PO item found — ' + data.uid + ' · Ø' + data.dia + ' · ' + data.orderNo);
+      el('poCard').className = 'card card-ok';
+      unlockBundle();
+      setStep(2);
+    } catch (err) {
+      setStatus('poStatus', 'err', 'Server error: ' + err.message);
+    }
+  }
+
+  async function fetchBundleDetails(bundleNo) {
+    setStatus('bundleStatus', 'loading', 'Looking up bundle…');
+    state.bundle = null;
+    resetValidation();
+    try {
+      const data = await apiGet({ api: 'bundle', id: bundleNo });
+      if (!data.found) {
+        setStatus('bundleStatus', 'err', data.message);
+        el('bundleCard').className = 'card card-ready card-err';
+        return;
+      }
+      state.bundle = data;
+      setStatus('bundleStatus', 'ok', '✓ ' + data.bundleId + ' · ' + data.status + ' · ' + data.currWeight + ' kg left');
+      runValidation();
+    } catch (err) {
+      setStatus('bundleStatus', 'err', 'Server error: ' + err.message);
+    }
+  }
+
+  async function runValidation() {
+    if (!state.po || !state.bundle) return;
+    setStep(3);
+    const banner = el('validBanner');
+    try {
+      const result = await apiGet({
+        api: 'validate',
+        uid: el('poInput').value.trim(),
+        bundle: el('bundleInput').value.trim(),
+      });
+      if (result.valid) {
+        banner.className = 'validation-banner ok';
+        banner.innerHTML = '<span class="banner-icon">✔</span><div>Validated — Ø' + state.po.dia + ' match confirmed.</div>';
+        state.valid = true;
+        Entry.show(state.po, state.bundle);
+      } else {
+        banner.className = 'validation-banner err';
+        banner.innerHTML = '<span class="banner-icon">✖</span><div>' + result.message + '</div>';
+        state.valid = false;
+        el('entryForm').style.display = 'none';
+      }
+    } catch (err) {
+      banner.className = 'validation-banner err';
+      banner.innerHTML = '<span class="banner-icon">✖</span><div>Validation error: ' + err.message + '</div>';
+    }
+  }
+
+  function setStatus(id, type, msg) {
+    const e = el(id);
+    e.className = 'status-row status-' + type;
+    e.textContent = msg;
+  }
+  function setStep(n) {
+    [1,2,3].forEach(i => {
+      const s = el('st' + i);
+      s.classList.remove('active','done');
+      if (i < n)  s.classList.add('done');
+      if (i === n) s.classList.add('active');
+    });
+  }
+  function unlockBundle() {
+    el('bundleCard').className   = 'card card-ready';
+    el('bundleInput').disabled   = false;
+    el('bundleScanBtn').disabled = false;
+  }
+  function clearPO() {
+    state.po = null;
+    setStatus('poStatus', '', '');
+    el('poCard').className = 'card';
+    lockBundle();
+    resetValidation();
+    setStep(1);
+  }
+  function clearBundle() {
+    state.bundle = null;
+    setStatus('bundleStatus', '', '');
+    el('bundleCard').className = 'card card-ready';
+    resetValidation();
+  }
+  function lockBundle() {
+    el('bundleCard').className   = 'card card-locked';
+    el('bundleInput').disabled   = true;
+    el('bundleScanBtn').disabled = true;
+    el('bundleInput').value      = '';
+    setStatus('bundleStatus', '', '');
+  }
+  function resetValidation() {
+    state.valid = false;
+    el('validBanner').className = 'validation-banner';
+    el('validBanner').innerHTML = '';
+    el('entryForm').style.display = 'none';
+  }
+
+  return { startScan, stopScan, onPOInput, onBundleInput, onPhotoCapture, setMode, setStatus };
+
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// Entry — inline cut entry form
+// ═══════════════════════════════════════════════════════════════════
+const Entry = (() => {
+
+  let _po = null, _bundle = null, _configLoaded = false;
+
+  async function show(po, bundle) {
+    _po = po; _bundle = bundle;
+    const rodWt = parseFloat(po.wtPerRod) || 0;
+
+    document.getElementById('fUid').textContent =
+      po.dia + ' x ' + po.length + ' PO NO: ' + po.orderNo;
+    document.getElementById('fBundle').textContent  = bundle.bundleId;
+    document.getElementById('fRodWt').value         = rodWt.toFixed(3);
+    document.getElementById('fDateTime').textContent = fmtDT(new Date());
+    document.getElementById('fQtyKg').value  = '0.000';
+    document.getElementById('fQtyPcs').value = '0';
+    document.getElementById('btnSave').disabled = false;
+
+    apiGet({ api: 'lastrodwt', uid: po.uid }).then(r => {
+      if (r.wt > 0) {
+        document.getElementById('fRodWt').value = Number(r.wt).toFixed(3);
+        onQtyPcsChange();
+      }
+    }).catch(() => {});
+
+    if (!_configLoaded) {
+      try {
+        const cfg = await apiGet({ api: 'config' });
+        _configLoaded = true;
+        fillSel('fProcess', cfg.processes, 'Cutting');
+        fillOperators(cfg.operators, '');
+        onProcessChange();
+      } catch (err) { toast('Config error: ' + err.message, 'err'); }
+    } else {
+      onProcessChange();
+    }
+
+    const form = document.getElementById('entryForm');
+    form.style.display = 'block';
+    setTimeout(() => form.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+
+  function step(id, delta, dec) {
+    const inp = document.getElementById(id);
+    inp.value = Math.max(0, (parseFloat(inp.value) || 0) + delta).toFixed(dec);
+  }
+
+  function getRodWt() {
+    return parseFloat(document.getElementById('fRodWt').value) || 0;
+  }
+  function onQtyPcsChange() {
+    const rodWt = getRodWt();
+    const pcs   = parseInt(document.getElementById('fQtyPcs').value) || 0;
+    if (rodWt > 0) document.getElementById('fQtyKg').value = (pcs * rodWt).toFixed(3);
+  }
+  function onQtyKgChange() {
+    const rodWt = getRodWt();
+    if (rodWt > 0) {
+      const kg = parseFloat(document.getElementById('fQtyKg').value) || 0;
+      document.getElementById('fQtyPcs').value = Math.round(kg / rodWt);
+    }
+  }
+  function onRodWtChange() { onQtyPcsChange(); }
+
+  function onProcessChange() {
+    const isCutting = document.getElementById('fProcess').value === 'Cutting';
+    const rackField = document.getElementById('rackField');
+    if (isCutting) {
+      rackField.innerHTML =
+        '<div class="stepper">' +
+        '<input class="stepper-val" type="number" id="fRackNo" value="1" step="1" min="1">' +
+        '<button class="stepper-btn" onclick="Entry.step(\'fRackNo\',-1,0)">&#8722;</button>' +
+        '<button class="stepper-btn" onclick="Entry.step(\'fRackNo\',1,0)">&#43;</button>' +
+        '</div>';
+      apiGet({ api: 'nextrack', orderNo: _po ? _po.orderNo : '' }).then(r => {
+        const inp = document.getElementById('fRackNo');
+        if (inp) inp.value = r.next;
+      }).catch(() => {});
+    } else {
+      rackField.innerHTML = '<select class="field-select" id="fRackNo"><option>Loading…</option></select>';
+      apiGet({ api: 'racks', orderNo: _po ? _po.orderNo : '' }).then(r => {
+        const sel = document.getElementById('fRackNo');
+        if (!sel) return;
+        sel.innerHTML = r.racks.length
+          ? r.racks.map(x => '<option value="' + x + '">Rack ' + x + '</option>').join('')
+          : '<option value="">No racks found</option>';
+      }).catch(() => {});
+    }
+  }
+
+  function getRackVal() {
+    const el = document.getElementById('fRackNo');
+    if (!el) return 0;
+    return el.tagName === 'SELECT' ? (el.value || 0) : (parseInt(el.value) || 0);
+  }
+
+  async function save() {
+    const qtyPcs = parseInt(document.getElementById('fQtyPcs').value) || 0;
+    const qtyKg  = parseFloat(document.getElementById('fQtyKg').value) || 0;
+    if (qtyPcs <= 0 && qtyKg <= 0) { toast('Enter Qty in pcs or Kg.', 'err'); return; }
+    document.getElementById('btnSave').disabled = true;
+    const data = {
+      uid:      _po.uid,
+      bundleNo: _bundle.bundleId,
+      orderNo:  _po.orderNo,
+      company:  _po.company,
+      dia:      _po.dia,
+      length:   _po.length,
+      process:  document.getElementById('fProcess').value,
+      doneBy:   document.getElementById('fDoneBy').value,
+      qtyPcs, qtyKg,
+      rodWt:    getRodWt(),
+      rackNo:   getRackVal(),
+    };
+    try {
+      const res = await apiPost({ action: 'saveEntry', data: data });
+      if (res.success) {
+        toast('✓ Saved — Tag Code ' + (res.tagCode || ''), 'ok');
+        setTimeout(cancel, 1600);
+      } else {
+        toast('Error: ' + res.message, 'err');
+        document.getElementById('btnSave').disabled = false;
+      }
+    } catch (err) {
+      toast('Error: ' + err.message, 'err');
+      document.getElementById('btnSave').disabled = false;
+    }
+  }
+
+  function cancel() {
+    document.getElementById('entryForm').style.display = 'none';
+    document.getElementById('validBanner').className = 'validation-banner';
+    document.getElementById('validBanner').innerHTML = '';
+  }
+
+  function fillSel(id, items, def) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = (!def ? '<option value="">— Select —</option>' : '') +
+      items.map(i => '<option value="' + i + '"' + (i === def ? ' selected' : '') + '>' + i + '</option>').join('');
+  }
+
+  function fillOperators(ops, selected) {
+    const sel = document.getElementById('fDoneBy');
+    if (!sel) return;
+    sel.innerHTML =
+      '<option value="">— Select —</option>' +
+      ops.map(o => '<option value="' + o + '"' + (o === selected ? ' selected' : '') + '>' + o + '</option>').join('') +
+      '<option value="__add__">+ Add new operator…</option>';
+  }
+
+  async function onDoneByChange() {
+    const sel = document.getElementById('fDoneBy');
+    if (sel.value !== '__add__') return;
+    const name = (window.prompt('Enter new operator name:') || '').trim();
+    if (!name) { sel.value = ''; return; }
+    sel.value = '';
+    try {
+      const res = await apiPost({ action: 'addOperator', name: name });
+      fillOperators(res.operators, name);
+      toast('Operator "' + name + '" added', 'ok');
+    } catch (err) {
+      toast('Could not add operator: ' + err.message, 'err');
+    }
+  }
+
+  function fmtDT(d) {
+    const p = n => String(n).padStart(2, '0');
+    return p(d.getDate()) + '/' + p(d.getMonth()+1) + '/' + d.getFullYear()
+      + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+
+  return { show, step, onQtyPcsChange, onQtyKgChange, onRodWtChange, onProcessChange, onDoneByChange, save, cancel };
+
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// Move — process change workflow
+// ═══════════════════════════════════════════════════════════════════
+const Move = (() => {
+
+  let _state      = null;
+  let _processes  = [];
+  let _galvanizers = [];
+  let _inited     = false;
+  let _timer      = null;
+
+  const el = id => document.getElementById(id);
+
+  async function init() {
+    if (_inited) return;
+    _inited = true;
+    try {
+      const cfg = await apiGet({ api: 'config' });
+      _processes   = cfg.processes;
+      _galvanizers = cfg.galvanizers || [];
+
+      el('mProcess').innerHTML =
+        '<option value="">— Select or scan process —</option>' +
+        cfg.processes.map(p => '<option value="' + p + '">' + p + '</option>').join('');
+
+      el('mGalvanizer').innerHTML =
+        '<option value="">— Select Galvanizer —</option>' +
+        _galvanizers.map(g => '<option value="' + g + '">' + g + '</option>').join('') +
+        '<option value="__add__">+ Add new…</option>';
+
+      el('mDoneBy').innerHTML =
+        '<option value="">— Select —</option>' +
+        cfg.operators.map(o => '<option value="' + o + '">' + o + '</option>').join('') +
+        '<option value="__add__">+ Add new operator…</option>';
+    } catch (err) { toast('Config error: ' + err.message, 'err'); }
+  }
+
+  function updateGalvField(process) {
+    const show = process === 'Galvanizing';
+    el('mGalvRow').style.display = show ? '' : 'none';
+    el('mDCRow').style.display   = show ? '' : 'none';
+    if (!show) { el('mGalvanizer').value = ''; el('mDCNo').value = ''; }
+  }
+
+  async function onGalvChange() {
+    const sel = el('mGalvanizer');
+    if (sel.value !== '__add__') return;
+    const name = (window.prompt('Enter galvanizer name:') || '').trim();
+    if (!name) { sel.value = ''; return; }
+    sel.value = '';
+    try {
+      const res = await apiPost({ action: 'addGalvanizer', name: name });
+      _galvanizers = res.galvanizers;
+      sel.innerHTML =
+        '<option value="">— Select Galvanizer —</option>' +
+        _galvanizers.map(g => '<option value="' + g + '"' + (g === name ? ' selected' : '') + '>' + g + '</option>').join('') +
+        '<option value="__add__">+ Add new…</option>';
+    } catch (err) {
+      toast('Could not add galvanizer: ' + err.message, 'err');
+    }
+  }
+
+  function onBundleInput(val) {
+    clearTimeout(_timer);
+    if (!val.trim()) { reset(); return; }
+    _timer = setTimeout(() => fetchState(val.trim()), 500);
+  }
+
+  async function fetchState(code) {
+    setSt('mBundleStatus', 'loading', 'Loading bundle…');
+    el('mSummary').innerHTML = '';
+    _state = null;
+    try {
+      const st = await apiGet({ api: 'state', code: code });
+      if (!st.found) {
+        setSt('mBundleStatus', 'err', st.message);
+        return;
+      }
+      _state = st;
+      setSt('mBundleStatus', 'ok', '✓ ' + st.bundle.bundleId + ' loaded');
+      renderSummary(st);
+      el('mProcessCard').className = 'card card-ready';
+      el('mRackNo').value = st.last ? (parseInt(st.last.rack) || 0) : 0;
+    } catch (err) {
+      setSt('mBundleStatus', 'err', 'Server error: ' + err.message);
+    }
+  }
+
+  function renderSummary(st) {
+    const b = st.bundle, p = st.po, l = st.last;
+    const orderNo = l ? l.orderNo : (p ? p.orderNo : '—');
+    const rows = [
+      ['Bundle',        b.bundleId, true],
+      ['PO No',         orderNo, false],
+      ['Company',       l ? l.company : (p ? p.company : b.company), false],
+      ['Dia',           (l ? l.dia    : (p ? p.dia    : b.dia)), false],
+      ['Length',        (l ? l.length : (p ? p.length : b.length)) + ' mm', false],
+      ['Qty',           l ? l.qtyPcs + ' pcs / ' + l.qtyKg + ' kg' : '—', false],
+      ['Rack',          l ? l.rack : '—', false],
+      ['Last Process',  l ? l.process : 'No transactions yet', true],
+    ];
+    el('mSummary').innerHTML = '<table>' +
+      rows.map(r => '<tr><td>' + r[0] + '</td><td class="' + (r[2] ? 'hl' : '') + '">' + r[1] + '</td></tr>').join('') +
+      '</table>';
+  }
+
+  function onProcessScanned(code) {
+    const name = String(code).trim();
+    const match = _processes.find(p => p.toLowerCase() === name.toLowerCase());
+    if (!match) {
+      setSt('mProcessStatus', 'err', '"' + name + '" is not a valid process QR.');
+      return;
+    }
+    el('mProcess').value = match;
+    setSt('mProcessStatus', 'ok', '✓ Process: ' + match);
+    updateGalvField(match);
+  }
+
+  function onProcessPicked() {
+    const v = el('mProcess').value;
+    if (v) setSt('mProcessStatus', 'ok', '✓ Process: ' + v);
+    updateGalvField(v);
+  }
+
+  async function onDoneByChange() {
+    const sel = el('mDoneBy');
+    if (sel.value !== '__add__') return;
+    const name = (window.prompt('Enter new operator name:') || '').trim();
+    if (!name) { sel.value = ''; return; }
+    sel.value = '';
+    try {
+      const res = await apiPost({ action: 'addOperator', name: name });
+      sel.innerHTML =
+        '<option value="">— Select —</option>' +
+        res.operators.map(o => '<option value="' + o + '"' + (o === name ? ' selected' : '') + '>' + o + '</option>').join('') +
+        '<option value="__add__">+ Add new operator…</option>';
+    } catch (err) {
+      toast('Could not add operator: ' + err.message, 'err');
+    }
+  }
+
+  function step(delta) {
+    const inp = el('mRackNo');
+    inp.value = Math.max(0, (parseInt(inp.value) || 0) + delta);
+  }
+
+  async function save() {
+    if (!_state) { toast('Scan the Bundle Movement Tag first.', 'err'); return; }
+    const process = el('mProcess').value;
+    if (!process) { toast('Scan or select the new process.', 'err'); return; }
+    if (process === 'Galvanizing' && !el('mGalvanizer').value) {
+      toast('Select the galvanizer.', 'err'); return;
+    }
+    if (process === 'Galvanizing' && !el('mDCNo').value.trim()) {
+      toast('Enter DC / Challan No.', 'err'); return;
+    }
+
+    const l = _state.last, p = _state.po, b = _state.bundle;
+    el('mBtnSave').disabled = true;
+
+    const data = {
+      uid:        l ? l.uid     : (p ? p.uid : b.uniqueId),
+      bundleNo:   b.bundleId,
+      orderNo:    l ? l.orderNo : (p ? p.orderNo : ''),
+      company:    l ? l.company : b.company,
+      dia:        l ? l.dia     : b.dia,
+      length:     l ? l.length  : b.length,
+      process:    process,
+      doneBy:     el('mDoneBy').value,
+      qtyPcs:     l ? Number(l.qtyPcs) : 0,
+      qtyKg:      l ? Number(l.qtyKg)  : 0,
+      rodWt:      l ? Number(l.rodWt)  : 0,
+      rackNo:     parseInt(el('mRackNo').value) || 0,
+      remarks:    el('mRemarks').value.trim(),
+      galvanizer: process === 'Galvanizing' ? el('mGalvanizer').value : '',
+      dcNo:       process === 'Galvanizing' ? el('mDCNo').value.trim() : '',
+      tagCode:    l ? l.tagCode : '',
+    };
+
+    try {
+      const res = await apiPost({ action: 'saveMove', data: data });
+      el('mBtnSave').disabled = false;
+      if (res.success) {
+        toast('✓ Moved to ' + process, 'ok');
+        setTimeout(reset, 1600);
+      } else {
+        toast(res.message, 'err');
+      }
+    } catch (err) {
+      el('mBtnSave').disabled = false;
+      toast('Error: ' + err.message, 'err');
+    }
+  }
+
+  function reset() {
+    _state = null;
+    el('mBundleInput').value = '';
+    el('mSummary').innerHTML = '';
+    setSt('mBundleStatus', '', '');
+    setSt('mProcessStatus', '', '');
+    el('mProcess').value  = '';
+    el('mRemarks').value  = '';
+    el('mRackNo').value   = '0';
+    el('mGalvRow').style.display = 'none';
+    el('mDCRow').style.display   = 'none';
+    el('mGalvanizer').value = '';
+    el('mDCNo').value       = '';
+    el('mProcessCard').className = 'card card-locked';
+  }
+
+  function setSt(id, type, msg) {
+    const e = el(id);
+    e.className = 'status-row status-' + type;
+    e.textContent = msg;
+  }
+
+  return { init, onBundleInput, fetchState, onProcessScanned, onProcessPicked,
+           onDoneByChange, onGalvChange, step, save, reset };
+
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// GalvReturn — record material returning from galvanizing / plating
+// ═══════════════════════════════════════════════════════════════════
+const GalvReturn = (() => {
+
+  const el = id => document.getElementById(id);
+
+  let _orders    = [];
+  let _challans  = [];
+  let _sel       = null;   // selected challan object
+  let _racks     = [];     // racks being entered this return
+  let _suffix    = 'G';
+  let _operators = [];
+  let _inited    = false;
+
+  async function init() {
+    if (_inited) return;
+    _inited = true;
+    try {
+      const [ordRes, cfg] = await Promise.all([
+        apiGet({ api: 'galvorders' }),
+        apiGet({ api: 'config' }),
+      ]);
+      _operators = cfg.operators || [];
+      _orders    = ordRes.orders || [];
+
+      el('grOrder').innerHTML =
+        _orders.length
+          ? '<option value="">— Select Order —</option>' +
+            _orders.map(o => '<option value="' + o.orderNo + '">' + o.orderNo + ' — ' + o.company + '</option>').join('')
+          : '<option value="">No material at galvanizer</option>';
+
+      el('grDoneBy').innerHTML =
+        '<option value="">— Select —</option>' +
+        _operators.map(o => '<option value="' + o + '">' + o + '</option>').join('');
+
+    } catch (err) {
+      el('grOrder').innerHTML = '<option value="">Error loading orders</option>';
+      toast('Load error: ' + err.message, 'err');
+    }
+  }
+
+  function onOrderChange() {
+    const orderNo = el('grOrder').value;
+    const order   = _orders.find(o => o.orderNo === orderNo);
+    _challans = []; _sel = null; _racks = [];
+    el('grUIDRow').style.display     = order ? '' : 'none';
+    el('grChallanRow').style.display = 'none';
+    lockCard('grReturnCard');
+    lockCard('grRacksCard');
+    lockCard('grSaveCard');
+    renderRackList();
+
+    if (!order) return;
+    el('grUID').innerHTML =
+      '<option value="">— Select Item —</option>' +
+      order.uids.map(u => '<option value="' + u.uid + '">' + u.uid + ' — Ø' + u.dia + ' × ' + u.length + 'mm</option>').join('');
+  }
+
+  async function onUIDChange() {
+    const orderNo = el('grOrder').value;
+    const uid     = el('grUID').value;
+    _challans = []; _sel = null; _racks = [];
+    el('grChallanRow').style.display = 'none';
+    lockCard('grReturnCard');
+    lockCard('grRacksCard');
+    lockCard('grSaveCard');
+    renderRackList();
+    if (!uid) return;
+
+    el('grChallan').innerHTML = '<option value="">Loading…</option>';
+    el('grChallanRow').style.display = '';
+    try {
+      const res = await apiGet({ api: 'galvsentchallans', orderNo, uid });
+      _challans = (res.challans || []).filter(c => !c.returned);
+      el('grChallan').innerHTML =
+        _challans.length
+          ? '<option value="">— Select Challan —</option>' +
+            _challans.map(c =>
+              '<option value="' + c.dcNo + '">DC ' + c.dcNo +
+              (c.galvanizer ? ' · ' + c.galvanizer : '') +
+              ' (' + (c.sentPcs || 0).toLocaleString() + ' pcs · ' + c.sentDate + ')</option>'
+            ).join('')
+          : '<option value="">No pending challans found</option>';
+    } catch (err) {
+      el('grChallan').innerHTML = '<option value="">Error loading challans</option>';
+      toast('Error: ' + err.message, 'err');
+    }
+  }
+
+  async function onChallanChange() {
+    const dcNo = el('grChallan').value;
+    _sel   = _challans.find(c => c.dcNo === dcNo) || null;
+    _racks = [];
+    lockCard('grReturnCard');
+    lockCard('grRacksCard');
+    lockCard('grSaveCard');
+    renderRackList();
+    if (!_sel) return;
+
+    _suffix = _sel.suffix || 'G';
+
+    const info = el('grSentInfo');
+    info.style.display = 'block';
+    info.innerHTML =
+      '<strong>' + (_sel.process || 'Galvanizing') + '</strong> — ' +
+      (_sel.galvanizer ? _sel.galvanizer + ' · ' : '') +
+      (_sel.sentPcs || 0).toLocaleString() + ' pcs · ' +
+      Number(_sel.sentKg || 0).toFixed(2) + ' kg sent' +
+      ' (' + _sel.rackCount + ' rack' + (_sel.rackCount !== 1 ? 's' : '') + ')';
+
+    el('grRetPcs').value = _sel.sentPcs || 0;
+    el('grRetKg').value  = Number(_sel.sentKg || 0).toFixed(3);
+
+    unlockCard('grReturnCard');
+
+    try {
+      const r = await apiGet({ api: 'galvnextrack', orderNo: _sel.orderNo, suffix: _suffix });
+      el('grNewRack').value = r.next || ('1' + _suffix);
+    } catch (e) {
+      el('grNewRack').value = '1' + _suffix;
+    }
+
+    unlockCard('grRacksCard');
+    unlockCard('grSaveCard');
+    el('grBtnSave').disabled = false;
+    renderTally();
+  }
+
+  function stepRetPcs(d) {
+    const inp = el('grRetPcs');
+    inp.value = Math.max(0, (parseInt(inp.value) || 0) + d);
+    renderTally();
+  }
+  function stepRetKg(d) {
+    const inp = el('grRetKg');
+    inp.value = Math.max(0, (parseFloat(inp.value) || 0) + d).toFixed(3);
+  }
+  function stepRack(d) {
+    const inp = el('grNewRack');
+    const val = inp.value.trim();
+    const sfx = (val.match(/[A-Za-z]+$/) || [_suffix])[0];
+    const num  = parseInt(val) || 1;
+    inp.value  = Math.max(1, num + d) + sfx;
+  }
+  function stepRackPcs(d) {
+    const inp = el('grRackPcs');
+    inp.value = Math.max(0, (parseInt(inp.value) || 0) + d);
+  }
+  function stepRackKg(d) {
+    const inp = el('grRackKg');
+    inp.value = Math.max(0, (parseFloat(inp.value) || 0) + d).toFixed(3);
+  }
+
+  function addRack() {
+    const rackNo = el('grNewRack').value.trim();
+    const pcs    = parseInt(el('grRackPcs').value) || 0;
+    const kg     = parseFloat(el('grRackKg').value) || 0;
+
+    if (!rackNo) { toast('Enter a rack number.', 'err'); return; }
+    if (pcs <= 0 && kg <= 0) { toast('Enter Pcs or Kg for this rack.', 'err'); return; }
+    if (_racks.some(r => r.rackNo.toUpperCase() === rackNo.toUpperCase())) {
+      toast('Rack ' + rackNo + ' already added.', 'err'); return;
+    }
+
+    _racks.push({ rackNo, qtyPcs: pcs, qtyKg: kg });
+
+    const sfx = (rackNo.match(/[A-Za-z]+$/) || [_suffix])[0];
+    const num  = parseInt(rackNo) || 1;
+    el('grNewRack').value = (num + 1) + sfx;
+    el('grRackPcs').value = '0';
+    el('grRackKg').value  = '0.000';
+
+    renderRackList();
+    renderTally();
+  }
+
+  function removeRack(idx) {
+    _racks.splice(idx, 1);
+    renderRackList();
+    renderTally();
+  }
+
+  function renderRackList() {
+    const list = el('grRackList');
+    if (!list) return;
+    if (!_racks.length) { list.innerHTML = ''; return; }
+    list.innerHTML = _racks.map((r, i) =>
+      '<div style="display:flex;align-items:center;justify-content:space-between;' +
+      'padding:10px 20px;border-bottom:1px solid var(--border);font-size:13px">' +
+      '<span><strong style="color:var(--accent)">' + r.rackNo + '</strong> — ' +
+      r.qtyPcs.toLocaleString() + ' pcs · ' + Number(r.qtyKg).toFixed(2) + ' kg</span>' +
+      '<button onclick="GalvReturn.removeRack(' + i + ')" style="background:var(--red-lo);' +
+      'border:none;color:var(--red);width:28px;height:28px;border-radius:6px;' +
+      'cursor:pointer;font-size:15px;line-height:1;flex-shrink:0">✕</button>' +
+      '</div>'
+    ).join('');
+  }
+
+  function renderTally() {
+    const tally = el('grTally');
+    if (!tally) return;
+    if (!_racks.length) { tally.innerHTML = ''; return; }
+    const totPcs = _racks.reduce((s, r) => s + r.qtyPcs, 0);
+    const totKg  = _racks.reduce((s, r) => s + Number(r.qtyKg), 0);
+    const retPcs = parseInt(el('grRetPcs').value) || 0;
+    const ok     = retPcs > 0 && totPcs === retPcs;
+    tally.innerHTML =
+      '<span style="color:' + (ok ? 'var(--green)' : 'var(--txt2)') + '">' +
+      'Racks total: ' + totPcs.toLocaleString() + ' pcs · ' + totKg.toFixed(2) + ' kg' +
+      (retPcs > 0 ? ' / Expected: ' + retPcs.toLocaleString() + ' pcs' : '') +
+      '</span>';
+  }
+
+  async function save() {
+    if (!_sel)           { toast('Select a challan first.', 'err'); return; }
+    const galvDC = el('grGalvDC').value.trim();
+    const retPcs = parseInt(el('grRetPcs').value) || 0;
+    const retKg  = parseFloat(el('grRetKg').value) || 0;
+    const doneBy = el('grDoneBy').value;
+    if (!galvDC)        { toast('Enter Galvanizer DC number.', 'err'); return; }
+    if (!_racks.length) { toast('Add at least one rack.', 'err'); return; }
+    if (!doneBy)        { toast('Select Done By.', 'err'); return; }
+
+    el('grBtnSave').disabled = true;
+    try {
+      const res = await apiPost({
+        action:      'saveGalvReturn',
+        outDCNo:     _sel.dcNo,
+        galvDCNo:    galvDC,
+        orderNo:     _sel.orderNo,
+        uid:         _sel.uid,
+        process:     _sel.process,
+        returnedPcs: retPcs,
+        returnedKg:  retKg,
+        doneBy:      doneBy,
+        racks:       _racks,
+      });
+      el('grBtnSave').disabled = false;
+      if (res.success) {
+        const codes = (res.tagCodes || []).join(', ');
+        toast('✓ Saved' + (codes ? ' — Tags: ' + codes : ''), 'ok');
+        setTimeout(reset, 2000);
+      } else {
+        toast(res.message || 'Save failed.', 'err');
+      }
+    } catch (err) {
+      el('grBtnSave').disabled = false;
+      toast('Error: ' + err.message, 'err');
+    }
+  }
+
+  function reset() {
+    _challans = []; _sel = null; _racks = []; _inited = false;
+    el('grOrder').innerHTML   = '<option value="">Loading…</option>';
+    el('grUID').innerHTML     = '<option value="">— Select Order first —</option>';
+    el('grChallan').innerHTML = '<option value="">— Select UID first —</option>';
+    el('grSentInfo').style.display   = 'none';
+    el('grUIDRow').style.display     = 'none';
+    el('grChallanRow').style.display = 'none';
+    el('grGalvDC').value  = '';
+    el('grRetPcs').value  = '0';
+    el('grRetKg').value   = '0.000';
+    el('grNewRack').value = '1G';
+    el('grRackPcs').value = '0';
+    el('grRackKg').value  = '0.000';
+    renderRackList();
+    el('grTally').innerHTML = '';
+    lockCard('grReturnCard');
+    lockCard('grRacksCard');
+    lockCard('grSaveCard');
+    el('grBtnSave').disabled = true;
+    init();
+  }
+
+  function lockCard(id)   { const e = el(id); if (e) e.className = 'card card-locked'; }
+  function unlockCard(id) { const e = el(id); if (e) e.className = 'card'; }
+
+  return { init, onOrderChange, onUIDChange, onChallanChange,
+           stepRetPcs, stepRetKg, stepRack, stepRackPcs, stepRackKg,
+           addRack, removeRack, save, reset };
+
+})();
+</script>
+</body>
+</html>

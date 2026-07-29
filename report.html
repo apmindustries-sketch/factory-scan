@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>APM Industries — Daily Production Report</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #0B1220; --surface: #111927; --surface2: #18243A;
+  --border:  #1E2E45; --accent:  #F0A500; --txt:  #D8E4F0;
+  --txt2:    #6B8CAE; --txt3:    #445F7A;
+  --green:   #22C55E; --red: #F05050;
+}
+body { background:var(--bg); color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; font-size:14px; min-height:100vh; }
+header { background:#0d1826; border-bottom:1px solid var(--border); padding:16px 24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+header h1 { font-size:16px; font-weight:700; color:var(--txt); flex:1; }
+.date-row { display:flex; align-items:center; gap:8px; }
+.date-row label { color:var(--txt2); font-size:12px; }
+input[type=date] { background:var(--surface2); border:1.5px solid var(--border); color:var(--txt); border-radius:8px; padding:8px 12px; font-size:13px; outline:none; }
+input[type=date]:focus { border-color:var(--accent); }
+.btn { background:var(--accent); color:#000; border:none; border-radius:8px; font-size:13px; font-weight:700; padding:9px 18px; cursor:pointer; }
+.btn:active { opacity:.8; }
+main { max-width:1100px; margin:0 auto; padding:24px 16px 48px; }
+.report-date { font-size:12px; color:var(--txt3); margin-bottom:20px; letter-spacing:.06em; text-transform:uppercase; }
+/* Summary cards */
+.summary-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; margin-bottom:32px; }
+.process-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; }
+.card-title { font-size:11px; font-weight:700; color:var(--accent); letter-spacing:.1em; text-transform:uppercase; margin-bottom:14px; }
+.card-totals { display:flex; gap:20px; margin-bottom:14px; }
+.total-item { display:flex; flex-direction:column; gap:2px; }
+.total-val { font-size:22px; font-weight:700; color:var(--green); font-variant-numeric:tabular-nums; }
+.total-lbl { font-size:10px; color:var(--txt3); text-transform:uppercase; letter-spacing:.06em; }
+.card-entries { font-size:11px; color:var(--txt3); margin-bottom:10px; }
+.op-table { width:100%; border-collapse:collapse; font-size:12px; }
+.op-table td { padding:4px 0; border-bottom:1px solid var(--border); }
+.op-table tr:last-child td { border-bottom:none; }
+.op-table td:first-child { color:var(--txt2); }
+.op-table td:last-child { text-align:right; font-variant-numeric:tabular-nums; color:var(--txt); }
+/* Detail table */
+.section-title { font-size:13px; font-weight:700; color:var(--txt); margin-bottom:12px; }
+.table-wrap { overflow-x:auto; border-radius:10px; border:1px solid var(--border); }
+table.detail { width:100%; border-collapse:collapse; font-size:12.5px; }
+table.detail th { background:var(--surface2); color:var(--txt3); font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; padding:10px 12px; text-align:left; white-space:nowrap; }
+table.detail td { padding:9px 12px; border-top:1px solid var(--border); color:var(--txt); white-space:nowrap; font-variant-numeric:tabular-nums; }
+table.detail tr:hover td { background:var(--surface2); }
+.process-badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700; background:var(--accent-lo,rgba(240,165,0,.15)); color:var(--accent); }
+.empty { text-align:center; padding:60px; color:var(--txt3); font-size:14px; }
+.loading { text-align:center; padding:60px; color:var(--txt2); animation:pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+.grand-total { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:16px 20px; margin-bottom:24px; display:flex; gap:32px; flex-wrap:wrap; }
+.grand-total span { font-size:12px; color:var(--txt2); }
+.grand-total strong { color:var(--green); font-size:15px; font-variant-numeric:tabular-nums; margin-left:6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚙ Daily Production Report</h1>
+  <div class="date-row">
+    <label>Date</label>
+    <input type="date" id="datePicker">
+    <button class="btn" onclick="loadReport()">Load</button>
+  </div>
+</header>
+
+<main>
+  <div id="output"><p class="empty">Select a date and click Load.</p></div>
+</main>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbzwczRq8RgUAoR6TPP-1yy77JE-fJYbC3vcNq7vW2gapr8o-YOxU0wT30lHz-raNL8K/exec';
+
+// Default to today (IST)
+const todayIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+document.getElementById('datePicker').value =
+  todayIST.getFullYear() + '-' +
+  String(todayIST.getMonth() + 1).padStart(2,'0') + '-' +
+  String(todayIST.getDate()).padStart(2,'0');
+
+async function loadReport() {
+  const date = document.getElementById('datePicker').value;
+  if (!date) return;
+  const out = document.getElementById('output');
+  out.innerHTML = '<p class="loading">Loading report…</p>';
+  try {
+    const res = await fetch(API_URL + '?api=report&date=' + date);
+    const data = await res.json();
+    if (data.error) { out.innerHTML = '<p class="empty">Error: ' + data.error + '</p>'; return; }
+    render(data);
+  } catch (e) {
+    out.innerHTML = '<p class="empty">Failed to load: ' + e.message + '</p>';
+  }
+}
+
+function fmt(n) { return Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 }); }
+
+function render(data) {
+  if (!data.details || data.details.length === 0) {
+    document.getElementById('output').innerHTML =
+      '<p class="empty">No entries found for ' + data.date + '.</p>';
+    return;
+  }
+
+  // Grand totals
+  const totalPcs = data.summary.reduce((s, p) => s + p.pcs, 0);
+  const totalKg  = data.summary.reduce((s, p) => s + p.kg,  0);
+  const totalEnt = data.summary.reduce((s, p) => s + p.entries, 0);
+
+  let html = '<p class="report-date">Report for ' + data.date + '</p>';
+
+  html += '<div class="grand-total">' +
+    '<div><span>Total Entries</span><strong>' + totalEnt + '</strong></div>' +
+    '<div><span>Total Qty Pcs</span><strong>' + fmt(totalPcs) + '</strong></div>' +
+    '<div><span>Total Qty Kg</span><strong>' + fmt(totalKg) + ' kg</strong></div>' +
+    '<div><span>Processes Active</span><strong>' + data.summary.length + '</strong></div>' +
+    '</div>';
+
+  // Process summary cards
+  html += '<div class="summary-grid">';
+  data.summary.forEach(p => {
+    const ops = Object.entries(p.byOperator);
+    html += '<div class="process-card">' +
+      '<div class="card-title">' + p.process + '</div>' +
+      '<div class="card-totals">' +
+        '<div class="total-item"><div class="total-val">' + fmt(p.pcs) + '</div><div class="total-lbl">Pcs</div></div>' +
+        '<div class="total-item"><div class="total-val">' + fmt(p.kg) + '</div><div class="total-lbl">Kg</div></div>' +
+      '</div>' +
+      '<div class="card-entries">' + p.entries + ' entr' + (p.entries === 1 ? 'y' : 'ies') + '</div>' +
+      '<table class="op-table">' +
+      ops.map(([op, v]) =>
+        '<tr><td>' + op + '</td><td>' + fmt(v.pcs) + ' pcs / ' + fmt(v.kg) + ' kg</td></tr>'
+      ).join('') +
+      '</table></div>';
+  });
+  html += '</div>';
+
+  // Detail table
+  html += '<div class="section-title">All Entries</div>';
+  html += '<div class="table-wrap"><table class="detail">' +
+    '<thead><tr>' +
+    '<th>Time</th><th>Process</th><th>Bundle</th><th>Order No</th>' +
+    '<th>Company</th><th>Dia</th><th>Length</th><th>Rack</th>' +
+    '<th>Done By</th><th>Qty Pcs</th><th>Qty Kg</th><th>Tag</th>' +
+    '</tr></thead><tbody>';
+
+  data.details.forEach(r => {
+    html += '<tr>' +
+      '<td>' + r.ts + '</td>' +
+      '<td><span class="process-badge">' + r.process + '</span></td>' +
+      '<td>' + r.bundle + '</td>' +
+      '<td>' + r.orderNo + '</td>' +
+      '<td>' + r.company + '</td>' +
+      '<td>' + r.dia + '</td>' +
+      '<td>' + r.length + '</td>' +
+      '<td>' + r.rack + '</td>' +
+      '<td>' + r.operator + '</td>' +
+      '<td style="text-align:right">' + fmt(r.pcs) + '</td>' +
+      '<td style="text-align:right">' + fmt(r.kg) + '</td>' +
+      '<td>' + (r.tagCode || '—') + '</td>' +
+      '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  document.getElementById('output').innerHTML = html;
+}
+</script>
+</body>
+</html>
