@@ -521,7 +521,16 @@ select.code-input { appearance: none; }
 
   <!-- Card 1: Order / Item / Challan selection -->
   <section class="card" id="grOrderCard">
-    <div class="card-eyebrow">Galvanizing / Plating Return</div>
+    <div class="card-eyebrow" id="grEyebrow">Galvanizing Return</div>
+    <div class="field-row">
+      <div class="field-label">Return Type</div>
+      <div class="field-value">
+        <select class="field-select" id="grReturnType" onchange="GalvReturn.onReturnTypeChange()">
+          <option value="galv">Galvanizing Return</option>
+          <option value="plating">Plating Return</option>
+        </select>
+      </div>
+    </div>
     <div class="field-row">
       <div class="field-label">Order No</div>
       <div class="field-value">
@@ -552,7 +561,7 @@ select.code-input { appearance: none; }
   <section class="card card-locked" id="grReturnCard">
     <div class="card-eyebrow">Return Details</div>
     <div id="grSentInfo" style="margin-bottom:14px;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:12.5px;color:var(--txt2);display:none"></div>
-    <div class="field-row">
+    <div class="field-row" id="grGalvDCRow">
       <div class="field-label">Galv DC No</div>
       <div class="field-value">
         <input class="stepper-val" style="text-align:left" type="text" id="grGalvDC" placeholder="Galvanizer's DC number">
@@ -1389,32 +1398,89 @@ const GalvReturn = (() => {
   async function onUIDChange() {
     const orderNo = el('grOrder').value;
     const uid     = el('grUID').value;
+    const retType = el('grReturnType').value;
     _challans = []; _sel = null; _racks = [];
     el('grChallanRow').style.display = 'none';
+    el('grSentInfo').style.display   = 'none';
     lockCard('grReturnCard');
     lockCard('grRacksCard');
     lockCard('grSaveCard');
     renderRackList();
     if (!uid) return;
 
-    el('grChallan').innerHTML = '<option value="">Loading…</option>';
-    el('grChallanRow').style.display = '';
-    try {
-      const res = await apiGet({ api: 'galvsentchallans', orderNo, uid });
-      _challans = (res.challans || []).filter(c => !c.returned);
-      el('grChallan').innerHTML =
-        _challans.length
-          ? '<option value="">— Select Challan —</option>' +
-            _challans.map(c =>
-              '<option value="' + c.dcNo + '">DC ' + c.dcNo +
-              (c.galvanizer ? ' · ' + c.galvanizer : '') +
-              ' (' + (c.sentPcs || 0).toLocaleString() + ' pcs · ' + c.sentDate + ')</option>'
-            ).join('')
-          : '<option value="">No pending challans found</option>';
-    } catch (err) {
-      el('grChallan').innerHTML = '<option value="">Error loading challans</option>';
-      toast('Error: ' + err.message, 'err');
+    if (retType === 'plating') {
+      _suffix = 'P';
+      try {
+        const [info, nxt] = await Promise.all([
+          apiGet({ api: 'platinginfo', orderNo, uid }),
+          apiGet({ api: 'galvnextrack', orderNo, suffix: 'P' }),
+        ]);
+        const sentInfo = el('grSentInfo');
+        sentInfo.style.display = 'block';
+        sentInfo.innerHTML =
+          '<strong>Plating</strong> — ' +
+          (info.totalSentPcs || 0).toLocaleString() + ' pcs · ' +
+          Number(info.totalSentKg || 0).toFixed(2) + ' kg sent' +
+          ' (' + (info.rackCount || 0) + ' rack' + ((info.rackCount || 0) !== 1 ? 's' : '') + ')';
+        el('grRetPcs').value  = info.totalSentPcs || 0;
+        el('grRetKg').value   = Number(info.totalSentKg || 0).toFixed(3);
+        el('grNewRack').value = nxt.next || '1P';
+      } catch (err) {
+        toast('Error loading plating info: ' + err.message, 'err');
+        return;
+      }
+      unlockCard('grReturnCard');
+      unlockCard('grRacksCard');
+      unlockCard('grSaveCard');
+      el('grBtnSave').disabled = false;
+      renderTally();
+    } else {
+      _suffix = 'G';
+      el('grChallan').innerHTML = '<option value="">Loading…</option>';
+      el('grChallanRow').style.display = '';
+      try {
+        const res = await apiGet({ api: 'galvsentchallans', orderNo, uid });
+        _challans = (res.challans || []).filter(c => !c.returned);
+        el('grChallan').innerHTML =
+          _challans.length
+            ? '<option value="">— Select Challan —</option>' +
+              _challans.map(c =>
+                '<option value="' + c.dcNo + '">DC ' + c.dcNo +
+                (c.galvanizer ? ' · ' + c.galvanizer : '') +
+                ' (' + (c.sentPcs || 0).toLocaleString() + ' pcs · ' + c.sentDate + ')</option>'
+              ).join('')
+            : '<option value="">No pending challans found</option>';
+      } catch (err) {
+        el('grChallan').innerHTML = '<option value="">Error loading challans</option>';
+        toast('Error: ' + err.message, 'err');
+      }
     }
+  }
+
+  function onReturnTypeChange() {
+    const retType = el('grReturnType').value;
+    el('grEyebrow').textContent     = retType === 'plating' ? 'Plating Return' : 'Galvanizing Return';
+    el('grGalvDCRow').style.display = retType === 'plating' ? 'none' : '';
+    _challans = []; _sel = null; _racks = [];
+    el('grUID').innerHTML     = '<option value="">— Select Order first —</option>';
+    el('grChallan').innerHTML = '<option value="">— Select UID first —</option>';
+    el('grSentInfo').style.display   = 'none';
+    el('grUIDRow').style.display     = 'none';
+    el('grChallanRow').style.display = 'none';
+    el('grGalvDC').value  = '';
+    el('grRetPcs').value  = '0';
+    el('grRetKg').value   = '0.000';
+    el('grNewRack').value = retType === 'plating' ? '1P' : '1G';
+    el('grRackPcs').value = '0';
+    el('grRackKg').value  = '0.000';
+    renderRackList();
+    el('grTally').innerHTML = '';
+    lockCard('grReturnCard');
+    lockCard('grRacksCard');
+    lockCard('grSaveCard');
+    el('grBtnSave').disabled = true;
+    el('grOrder').value = '';
+    onOrderChange();
   }
 
   async function onChallanChange() {
@@ -1542,29 +1608,31 @@ const GalvReturn = (() => {
   }
 
   async function save() {
-    if (!_sel)           { toast('Select a challan first.', 'err'); return; }
+    const isPlating = el('grReturnType').value === 'plating';
+    const orderNo   = isPlating ? el('grOrder').value : (_sel ? _sel.orderNo : '');
+    const uid       = isPlating ? el('grUID').value   : (_sel ? _sel.uid     : '');
+
+    if (!isPlating && !_sel) { toast('Select a challan first.', 'err'); return; }
+    if (!orderNo || !uid)    { toast('Select Order and Item.', 'err'); return; }
+
     const galvDC = el('grGalvDC').value.trim();
     const retPcs = parseInt(el('grRetPcs').value) || 0;
     const retKg  = parseFloat(el('grRetKg').value) || 0;
     const doneBy = el('grDoneBy').value;
-    if (!galvDC)        { toast('Enter Galvanizer DC number.', 'err'); return; }
+
+    if (!isPlating && !galvDC) { toast('Enter Galvanizer DC number.', 'err'); return; }
     if (!_racks.length) { toast('Add at least one rack.', 'err'); return; }
     if (!doneBy)        { toast('Select Done By.', 'err'); return; }
 
     el('grBtnSave').disabled = true;
     try {
-      const res = await apiPost({
-        action:      'saveGalvReturn',
-        outDCNo:     _sel.dcNo,
-        galvDCNo:    galvDC,
-        orderNo:     _sel.orderNo,
-        uid:         _sel.uid,
-        process:     _sel.process,
-        returnedPcs: retPcs,
-        returnedKg:  retKg,
-        doneBy:      doneBy,
-        racks:       _racks,
-      });
+      const payload = isPlating
+        ? { action: 'saveGalvReturn', process: 'Plating',
+            orderNo, uid, returnedPcs: retPcs, returnedKg: retKg, doneBy, racks: _racks }
+        : { action: 'saveGalvReturn', outDCNo: _sel.dcNo, galvDCNo: galvDC,
+            orderNo, uid, process: _sel.process,
+            returnedPcs: retPcs, returnedKg: retKg, doneBy, racks: _racks };
+      const res = await apiPost(payload);
       el('grBtnSave').disabled = false;
       if (res.success) {
         const codes = (res.tagCodes || []).join(', ');
@@ -1580,6 +1648,7 @@ const GalvReturn = (() => {
   }
 
   function reset() {
+    const retType = el('grReturnType').value;
     _challans = []; _sel = null; _racks = []; _inited = false;
     el('grOrder').innerHTML   = '<option value="">Loading…</option>';
     el('grUID').innerHTML     = '<option value="">— Select Order first —</option>';
@@ -1587,10 +1656,11 @@ const GalvReturn = (() => {
     el('grSentInfo').style.display   = 'none';
     el('grUIDRow').style.display     = 'none';
     el('grChallanRow').style.display = 'none';
+    el('grGalvDCRow').style.display  = retType === 'plating' ? 'none' : '';
     el('grGalvDC').value  = '';
     el('grRetPcs').value  = '0';
     el('grRetKg').value   = '0.000';
-    el('grNewRack').value = '1G';
+    el('grNewRack').value = retType === 'plating' ? '1P' : '1G';
     el('grRackPcs').value = '0';
     el('grRackKg').value  = '0.000';
     renderRackList();
@@ -1605,7 +1675,7 @@ const GalvReturn = (() => {
   function lockCard(id)   { const e = el(id); if (e) e.className = 'card card-locked'; }
   function unlockCard(id) { const e = el(id); if (e) e.className = 'card'; }
 
-  return { init, onOrderChange, onUIDChange, onChallanChange,
+  return { init, onOrderChange, onUIDChange, onReturnTypeChange, onChallanChange,
            stepRetPcs, stepRetKg, stepRack, stepRackPcs, stepRackKg,
            addRack, removeRack, save, reset };
 
