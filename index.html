@@ -1769,6 +1769,10 @@ const PlatingReturn = (() => {
       ]);
       const sentInfo = el('prSentInfo');
       sentInfo.style.display = 'block';
+      if (!info.totalSentPcs) {
+        sentInfo.innerHTML = '<strong style="color:var(--red)">⚠ No plating material found for this item</strong>';
+        return;
+      }
       sentInfo.innerHTML =
         '<strong>Plating sent</strong> — ' +
         (info.totalSentPcs || 0).toLocaleString() + ' pcs · ' +
