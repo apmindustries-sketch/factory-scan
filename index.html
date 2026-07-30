@@ -315,9 +315,10 @@ select.code-input { appearance: none; }
     <h1>Production Cutting</h1>
   </div>
   <div class="mode-tabs">
-    <button class="mode-tab active" id="tabCut"  onclick="App.setMode('cut')">✂ Cutting</button>
-    <button class="mode-tab" id="tabMove" onclick="App.setMode('move')">➜ Process Move</button>
-    <button class="mode-tab" id="tabGalv" onclick="App.setMode('galv')">⚖ Galv Return</button>
+    <button class="mode-tab active" id="tabCut"      onclick="App.setMode('cut')">✂ Cutting</button>
+    <button class="mode-tab" id="tabMove"     onclick="App.setMode('move')">➜ Process Move</button>
+    <button class="mode-tab" id="tabGalv"     onclick="App.setMode('galv')">⚖ Galv Return</button>
+    <button class="mode-tab" id="tabPlating"  onclick="App.setMode('plating')">⬡ Plating Return</button>
   </div>
   <div class="step-track" id="stepTrack">
     <div class="step-item active" id="st1"><span class="step-dot">1</span><span>PO Item</span></div>
@@ -521,16 +522,7 @@ select.code-input { appearance: none; }
 
   <!-- Card 1: Order / Item / Challan selection -->
   <section class="card" id="grOrderCard">
-    <div class="card-eyebrow" id="grEyebrow">Galvanizing Return</div>
-    <div class="field-row">
-      <div class="field-label">Return Type</div>
-      <div class="field-value">
-        <select class="field-select" id="grReturnType" onchange="GalvReturn.onReturnTypeChange()">
-          <option value="galv">Galvanizing Return</option>
-          <option value="plating">Plating Return</option>
-        </select>
-      </div>
-    </div>
+    <div class="card-eyebrow">Galvanizing Return</div>
     <div class="field-row">
       <div class="field-label">Order No</div>
       <div class="field-value">
@@ -646,6 +638,89 @@ select.code-input { appearance: none; }
   </section>
 
 </div><!-- /galvMode -->
+
+<!-- ══════════ PLATING RETURN MODE ══════════ -->
+<div id="platingMode" style="display:none">
+
+  <!-- Card 1: Order / Item -->
+  <section class="card" id="prOrderCard">
+    <div class="card-eyebrow">Plating Return</div>
+    <div class="field-row">
+      <div class="field-label">Order No</div>
+      <div class="field-value">
+        <select class="field-select" id="prOrder" onchange="PlatingReturn.onOrderChange()">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row" id="prUIDRow" style="display:none">
+      <div class="field-label">Item (UID)</div>
+      <div class="field-value">
+        <select class="field-select" id="prUID" onchange="PlatingReturn.onUIDChange()">
+          <option value="">— Select Order first —</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- Card 2: New Racks -->
+  <section class="card card-locked" id="prRacksCard">
+    <div class="card-eyebrow">New Racks Received</div>
+    <div id="prSentInfo" style="margin-bottom:14px;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:12.5px;color:var(--txt2);display:none"></div>
+    <div class="field-row">
+      <div class="field-label">Rack No</div>
+      <div class="field-value">
+        <div class="stepper">
+          <input class="stepper-val" type="text" id="prNewRack" value="1P" style="letter-spacing:.06em">
+          <button class="stepper-btn" onclick="PlatingReturn.stepRack(-1)">&#8722;</button>
+          <button class="stepper-btn" onclick="PlatingReturn.stepRack(1)">&#43;</button>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Pcs</div>
+      <div class="field-value">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="prRackPcs" value="0" step="1" min="0">
+          <button class="stepper-btn" onclick="PlatingReturn.stepRackPcs(-1)">&#8722;</button>
+          <button class="stepper-btn" onclick="PlatingReturn.stepRackPcs(1)">&#43;</button>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Kg</div>
+      <div class="field-value">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="prRackKg" value="0.000" step="0.001" min="0">
+          <button class="stepper-btn" onclick="PlatingReturn.stepRackKg(-0.1)">&#8722;</button>
+          <button class="stepper-btn" onclick="PlatingReturn.stepRackKg(0.1)">&#43;</button>
+        </div>
+      </div>
+    </div>
+    <div style="padding:0 20px 14px">
+      <button class="btn-save" style="width:100%;padding:12px" onclick="PlatingReturn.addRack()">+ Add Rack</button>
+    </div>
+    <div id="prRackList" style="border-top:1px solid var(--border)"></div>
+    <div id="prTally" style="padding:12px 20px;font-size:12.5px;color:var(--txt2)"></div>
+  </section>
+
+  <!-- Card 3: Done By + Save -->
+  <section class="card card-locked" id="prSaveCard">
+    <div class="field-row" style="border:none">
+      <div class="field-label">Done By</div>
+      <div class="field-value">
+        <select class="field-select" id="prDoneBy">
+          <option value="">— Select —</option>
+        </select>
+      </div>
+    </div>
+    <div class="entry-actions">
+      <button class="btn-cancel" onclick="PlatingReturn.reset()">Cancel</button>
+      <button class="btn-save" id="prBtnSave" onclick="PlatingReturn.save()" disabled>Save Return</button>
+    </div>
+  </section>
+
+</div><!-- /platingMode -->
 
   <div class="toast" id="toast"></div>
 
@@ -797,15 +872,18 @@ const App = (() => {
   }
 
   function setMode(mode) {
-    el('cutMode').style.display   = mode === 'cut'  ? 'block' : 'none';
-    el('moveMode').style.display  = mode === 'move' ? 'block' : 'none';
-    el('galvMode').style.display  = mode === 'galv' ? 'block' : 'none';
-    el('stepTrack').style.display = mode === 'cut'  ? 'flex'  : 'none';
-    el('tabCut').className  = 'mode-tab' + (mode === 'cut'  ? ' active' : '');
-    el('tabMove').className = 'mode-tab' + (mode === 'move' ? ' active' : '');
-    el('tabGalv').className = 'mode-tab' + (mode === 'galv' ? ' active' : '');
-    if (mode === 'move') Move.init();
-    if (mode === 'galv') GalvReturn.init();
+    el('cutMode').style.display     = mode === 'cut'     ? 'block' : 'none';
+    el('moveMode').style.display    = mode === 'move'    ? 'block' : 'none';
+    el('galvMode').style.display    = mode === 'galv'    ? 'block' : 'none';
+    el('platingMode').style.display = mode === 'plating' ? 'block' : 'none';
+    el('stepTrack').style.display   = mode === 'cut'     ? 'flex'  : 'none';
+    el('tabCut').className     = 'mode-tab' + (mode === 'cut'     ? ' active' : '');
+    el('tabMove').className    = 'mode-tab' + (mode === 'move'    ? ' active' : '');
+    el('tabGalv').className    = 'mode-tab' + (mode === 'galv'    ? ' active' : '');
+    el('tabPlating').className = 'mode-tab' + (mode === 'plating' ? ' active' : '');
+    if (mode === 'move')    Move.init();
+    if (mode === 'galv')    GalvReturn.init();
+    if (mode === 'plating') PlatingReturn.init();
   }
 
   let poTimer, bundleTimer;
@@ -1398,89 +1476,32 @@ const GalvReturn = (() => {
   async function onUIDChange() {
     const orderNo = el('grOrder').value;
     const uid     = el('grUID').value;
-    const retType = el('grReturnType').value;
     _challans = []; _sel = null; _racks = [];
     el('grChallanRow').style.display = 'none';
-    el('grSentInfo').style.display   = 'none';
     lockCard('grReturnCard');
     lockCard('grRacksCard');
     lockCard('grSaveCard');
     renderRackList();
     if (!uid) return;
 
-    if (retType === 'plating') {
-      _suffix = 'P';
-      try {
-        const [info, nxt] = await Promise.all([
-          apiGet({ api: 'platinginfo', orderNo, uid }),
-          apiGet({ api: 'galvnextrack', orderNo, suffix: 'P' }),
-        ]);
-        const sentInfo = el('grSentInfo');
-        sentInfo.style.display = 'block';
-        sentInfo.innerHTML =
-          '<strong>Plating</strong> — ' +
-          (info.totalSentPcs || 0).toLocaleString() + ' pcs · ' +
-          Number(info.totalSentKg || 0).toFixed(2) + ' kg sent' +
-          ' (' + (info.rackCount || 0) + ' rack' + ((info.rackCount || 0) !== 1 ? 's' : '') + ')';
-        el('grRetPcs').value  = info.totalSentPcs || 0;
-        el('grRetKg').value   = Number(info.totalSentKg || 0).toFixed(3);
-        el('grNewRack').value = nxt.next || '1P';
-      } catch (err) {
-        toast('Error loading plating info: ' + err.message, 'err');
-        return;
-      }
-      unlockCard('grReturnCard');
-      unlockCard('grRacksCard');
-      unlockCard('grSaveCard');
-      el('grBtnSave').disabled = false;
-      renderTally();
-    } else {
-      _suffix = 'G';
-      el('grChallan').innerHTML = '<option value="">Loading…</option>';
-      el('grChallanRow').style.display = '';
-      try {
-        const res = await apiGet({ api: 'galvsentchallans', orderNo, uid });
-        _challans = (res.challans || []).filter(c => !c.returned);
-        el('grChallan').innerHTML =
-          _challans.length
-            ? '<option value="">— Select Challan —</option>' +
-              _challans.map(c =>
-                '<option value="' + c.dcNo + '">DC ' + c.dcNo +
-                (c.galvanizer ? ' · ' + c.galvanizer : '') +
-                ' (' + (c.sentPcs || 0).toLocaleString() + ' pcs · ' + c.sentDate + ')</option>'
-              ).join('')
-            : '<option value="">No pending challans found</option>';
-      } catch (err) {
-        el('grChallan').innerHTML = '<option value="">Error loading challans</option>';
-        toast('Error: ' + err.message, 'err');
-      }
+    el('grChallan').innerHTML = '<option value="">Loading…</option>';
+    el('grChallanRow').style.display = '';
+    try {
+      const res = await apiGet({ api: 'galvsentchallans', orderNo, uid });
+      _challans = (res.challans || []).filter(c => !c.returned);
+      el('grChallan').innerHTML =
+        _challans.length
+          ? '<option value="">— Select Challan —</option>' +
+            _challans.map(c =>
+              '<option value="' + c.dcNo + '">DC ' + c.dcNo +
+              (c.galvanizer ? ' · ' + c.galvanizer : '') +
+              ' (' + (c.sentPcs || 0).toLocaleString() + ' pcs · ' + c.sentDate + ')</option>'
+            ).join('')
+          : '<option value="">No pending challans found</option>';
+    } catch (err) {
+      el('grChallan').innerHTML = '<option value="">Error loading challans</option>';
+      toast('Error: ' + err.message, 'err');
     }
-  }
-
-  function onReturnTypeChange() {
-    const retType = el('grReturnType').value;
-    el('grEyebrow').textContent     = retType === 'plating' ? 'Plating Return' : 'Galvanizing Return';
-    el('grGalvDCRow').style.display = retType === 'plating' ? 'none' : '';
-    _challans = []; _sel = null; _racks = [];
-    el('grUID').innerHTML     = '<option value="">— Select Order first —</option>';
-    el('grChallan').innerHTML = '<option value="">— Select UID first —</option>';
-    el('grSentInfo').style.display   = 'none';
-    el('grUIDRow').style.display     = 'none';
-    el('grChallanRow').style.display = 'none';
-    el('grGalvDC').value  = '';
-    el('grRetPcs').value  = '0';
-    el('grRetKg').value   = '0.000';
-    el('grNewRack').value = retType === 'plating' ? '1P' : '1G';
-    el('grRackPcs').value = '0';
-    el('grRackKg').value  = '0.000';
-    renderRackList();
-    el('grTally').innerHTML = '';
-    lockCard('grReturnCard');
-    lockCard('grRacksCard');
-    lockCard('grSaveCard');
-    el('grBtnSave').disabled = true;
-    el('grOrder').value = '';
-    onOrderChange();
   }
 
   async function onChallanChange() {
@@ -1608,31 +1629,29 @@ const GalvReturn = (() => {
   }
 
   async function save() {
-    const isPlating = el('grReturnType').value === 'plating';
-    const orderNo   = isPlating ? el('grOrder').value : (_sel ? _sel.orderNo : '');
-    const uid       = isPlating ? el('grUID').value   : (_sel ? _sel.uid     : '');
-
-    if (!isPlating && !_sel) { toast('Select a challan first.', 'err'); return; }
-    if (!orderNo || !uid)    { toast('Select Order and Item.', 'err'); return; }
-
+    if (!_sel)           { toast('Select a challan first.', 'err'); return; }
     const galvDC = el('grGalvDC').value.trim();
     const retPcs = parseInt(el('grRetPcs').value) || 0;
     const retKg  = parseFloat(el('grRetKg').value) || 0;
     const doneBy = el('grDoneBy').value;
-
-    if (!isPlating && !galvDC) { toast('Enter Galvanizer DC number.', 'err'); return; }
+    if (!galvDC)        { toast('Enter Galvanizer DC number.', 'err'); return; }
     if (!_racks.length) { toast('Add at least one rack.', 'err'); return; }
     if (!doneBy)        { toast('Select Done By.', 'err'); return; }
 
     el('grBtnSave').disabled = true;
     try {
-      const payload = isPlating
-        ? { action: 'saveGalvReturn', process: 'Plating',
-            orderNo, uid, returnedPcs: retPcs, returnedKg: retKg, doneBy, racks: _racks }
-        : { action: 'saveGalvReturn', outDCNo: _sel.dcNo, galvDCNo: galvDC,
-            orderNo, uid, process: _sel.process,
-            returnedPcs: retPcs, returnedKg: retKg, doneBy, racks: _racks };
-      const res = await apiPost(payload);
+      const res = await apiPost({
+        action:      'saveGalvReturn',
+        outDCNo:     _sel.dcNo,
+        galvDCNo:    galvDC,
+        orderNo:     _sel.orderNo,
+        uid:         _sel.uid,
+        process:     _sel.process,
+        returnedPcs: retPcs,
+        returnedKg:  retKg,
+        doneBy,
+        racks:       _racks,
+      });
       el('grBtnSave').disabled = false;
       if (res.success) {
         const codes = (res.tagCodes || []).join(', ');
@@ -1648,7 +1667,6 @@ const GalvReturn = (() => {
   }
 
   function reset() {
-    const retType = el('grReturnType').value;
     _challans = []; _sel = null; _racks = []; _inited = false;
     el('grOrder').innerHTML   = '<option value="">Loading…</option>';
     el('grUID').innerHTML     = '<option value="">— Select Order first —</option>';
@@ -1656,11 +1674,11 @@ const GalvReturn = (() => {
     el('grSentInfo').style.display   = 'none';
     el('grUIDRow').style.display     = 'none';
     el('grChallanRow').style.display = 'none';
-    el('grGalvDCRow').style.display  = retType === 'plating' ? 'none' : '';
+    el('grGalvDCRow').style.display  = '';
     el('grGalvDC').value  = '';
     el('grRetPcs').value  = '0';
     el('grRetKg').value   = '0.000';
-    el('grNewRack').value = retType === 'plating' ? '1P' : '1G';
+    el('grNewRack').value = '1G';
     el('grRackPcs').value = '0';
     el('grRackKg').value  = '0.000';
     renderRackList();
@@ -1675,8 +1693,222 @@ const GalvReturn = (() => {
   function lockCard(id)   { const e = el(id); if (e) e.className = 'card card-locked'; }
   function unlockCard(id) { const e = el(id); if (e) e.className = 'card'; }
 
-  return { init, onOrderChange, onUIDChange, onReturnTypeChange, onChallanChange,
+  return { init, onOrderChange, onUIDChange, onChallanChange,
            stepRetPcs, stepRetKg, stepRack, stepRackPcs, stepRackKg,
+           addRack, removeRack, save, reset };
+
+})();
+
+// PlatingReturn — record material returning from plating (no challan)
+// ═══════════════════════════════════════════════════════════════════
+const PlatingReturn = (() => {
+
+  const el = id => document.getElementById(id);
+
+  let _orders    = [];
+  let _racks     = [];
+  let _orderNo   = '';
+  let _uid       = '';
+  let _operators = [];
+  let _inited    = false;
+
+  async function init() {
+    if (_inited) return;
+    _inited = true;
+    try {
+      const [ordRes, cfg] = await Promise.all([
+        apiGet({ api: 'galvorders' }),
+        apiGet({ api: 'config' }),
+      ]);
+      _operators = cfg.operators || [];
+      _orders    = ordRes.orders || [];
+
+      el('prOrder').innerHTML =
+        _orders.length
+          ? '<option value="">— Select Order —</option>' +
+            _orders.map(o => '<option value="' + o.orderNo + '">' + o.orderNo + ' — ' + o.company + '</option>').join('')
+          : '<option value="">No orders found</option>';
+
+      el('prDoneBy').innerHTML =
+        '<option value="">— Select —</option>' +
+        _operators.map(o => '<option value="' + o + '">' + o + '</option>').join('');
+
+    } catch (err) {
+      el('prOrder').innerHTML = '<option value="">Error loading</option>';
+      toast('Load error: ' + err.message, 'err');
+    }
+  }
+
+  function onOrderChange() {
+    const orderNo = el('prOrder').value;
+    const order   = _orders.find(o => o.orderNo === orderNo);
+    _racks = []; _orderNo = orderNo; _uid = '';
+    el('prUIDRow').style.display = order ? '' : 'none';
+    lockCard('prRacksCard');
+    lockCard('prSaveCard');
+    renderRackList();
+    if (!order) return;
+    el('prUID').innerHTML =
+      '<option value="">— Select Item —</option>' +
+      order.uids.map(u => '<option value="' + u.uid + '">' + u.uid + ' — Ø' + u.dia + ' × ' + u.length + 'mm</option>').join('');
+  }
+
+  async function onUIDChange() {
+    const uid = el('prUID').value;
+    _racks = []; _uid = uid;
+    lockCard('prRacksCard');
+    lockCard('prSaveCard');
+    el('prSentInfo').style.display = 'none';
+    renderRackList();
+    if (!uid || !_orderNo) return;
+
+    try {
+      const [info, nxt] = await Promise.all([
+        apiGet({ api: 'platinginfo', orderNo: _orderNo, uid }),
+        apiGet({ api: 'galvnextrack', orderNo: _orderNo, suffix: 'P' }),
+      ]);
+      const sentInfo = el('prSentInfo');
+      sentInfo.style.display = 'block';
+      sentInfo.innerHTML =
+        '<strong>Plating sent</strong> — ' +
+        (info.totalSentPcs || 0).toLocaleString() + ' pcs · ' +
+        Number(info.totalSentKg || 0).toFixed(2) + ' kg' +
+        ' (' + (info.rackCount || 0) + ' rack' + ((info.rackCount || 0) !== 1 ? 's' : '') + ')';
+      el('prNewRack').value = nxt.next || '1P';
+    } catch (err) {
+      toast('Error: ' + err.message, 'err');
+      return;
+    }
+    unlockCard('prRacksCard');
+    unlockCard('prSaveCard');
+    el('prBtnSave').disabled = false;
+    renderTally();
+  }
+
+  function stepRack(d) {
+    const inp = el('prNewRack');
+    const val = inp.value.trim();
+    const sfx = (val.match(/[A-Za-z]+$/) || ['P'])[0];
+    const num  = parseInt(val) || 1;
+    inp.value  = Math.max(1, num + d) + sfx;
+  }
+  function stepRackPcs(d) {
+    const inp = el('prRackPcs');
+    inp.value = Math.max(0, (parseInt(inp.value) || 0) + d);
+  }
+  function stepRackKg(d) {
+    const inp = el('prRackKg');
+    inp.value = Math.max(0, (parseFloat(inp.value) || 0) + d).toFixed(3);
+  }
+
+  function addRack() {
+    const rackNo = el('prNewRack').value.trim();
+    const pcs    = parseInt(el('prRackPcs').value) || 0;
+    const kg     = parseFloat(el('prRackKg').value) || 0;
+    if (!rackNo) { toast('Enter a rack number.', 'err'); return; }
+    if (pcs <= 0 && kg <= 0) { toast('Enter Pcs or Kg for this rack.', 'err'); return; }
+    if (_racks.some(r => r.rackNo.toUpperCase() === rackNo.toUpperCase())) {
+      toast('Rack ' + rackNo + ' already added.', 'err'); return;
+    }
+    _racks.push({ rackNo, qtyPcs: pcs, qtyKg: kg });
+    const sfx = (rackNo.match(/[A-Za-z]+$/) || ['P'])[0];
+    const num  = parseInt(rackNo) || 1;
+    el('prNewRack').value = (num + 1) + sfx;
+    el('prRackPcs').value = '0';
+    el('prRackKg').value  = '0.000';
+    renderRackList();
+    renderTally();
+  }
+
+  function removeRack(idx) {
+    _racks.splice(idx, 1);
+    renderRackList();
+    renderTally();
+  }
+
+  function renderRackList() {
+    const list = el('prRackList');
+    if (!list) return;
+    if (!_racks.length) { list.innerHTML = ''; return; }
+    list.innerHTML = _racks.map((r, i) =>
+      '<div style="display:flex;align-items:center;justify-content:space-between;' +
+      'padding:10px 20px;border-bottom:1px solid var(--border);font-size:13px">' +
+      '<span><strong style="color:var(--accent)">' + r.rackNo + '</strong> — ' +
+      r.qtyPcs.toLocaleString() + ' pcs · ' + Number(r.qtyKg).toFixed(2) + ' kg</span>' +
+      '<button onclick="PlatingReturn.removeRack(' + i + ')" style="background:var(--red-lo);' +
+      'border:none;color:var(--red);width:28px;height:28px;border-radius:6px;' +
+      'cursor:pointer;font-size:15px;line-height:1;flex-shrink:0">✕</button>' +
+      '</div>'
+    ).join('');
+  }
+
+  function renderTally() {
+    const tally = el('prTally');
+    if (!tally) return;
+    if (!_racks.length) { tally.innerHTML = ''; return; }
+    const totPcs = _racks.reduce((s, r) => s + r.qtyPcs, 0);
+    const totKg  = _racks.reduce((s, r) => s + Number(r.qtyKg), 0);
+    tally.innerHTML =
+      '<span style="color:var(--txt2)">Total received: ' +
+      totPcs.toLocaleString() + ' pcs · ' + totKg.toFixed(2) + ' kg</span>';
+  }
+
+  async function save() {
+    if (!_orderNo || !_uid) { toast('Select Order and Item.', 'err'); return; }
+    if (!_racks.length)     { toast('Add at least one rack.', 'err'); return; }
+    const doneBy = el('prDoneBy').value;
+    if (!doneBy) { toast('Select Done By.', 'err'); return; }
+
+    const totPcs = _racks.reduce((s, r) => s + r.qtyPcs, 0);
+    const totKg  = _racks.reduce((s, r) => s + Number(r.qtyKg), 0);
+
+    el('prBtnSave').disabled = true;
+    try {
+      const res = await apiPost({
+        action:      'saveGalvReturn',
+        process:     'Plating',
+        orderNo:     _orderNo,
+        uid:         _uid,
+        returnedPcs: totPcs,
+        returnedKg:  totKg,
+        doneBy,
+        racks:       _racks,
+      });
+      el('prBtnSave').disabled = false;
+      if (res.success) {
+        const codes = (res.tagCodes || []).join(', ');
+        toast('✓ Saved' + (codes ? ' — Tags: ' + codes : ''), 'ok');
+        setTimeout(reset, 2000);
+      } else {
+        toast(res.message || 'Save failed.', 'err');
+      }
+    } catch (err) {
+      el('prBtnSave').disabled = false;
+      toast('Error: ' + err.message, 'err');
+    }
+  }
+
+  function reset() {
+    _racks = []; _orderNo = ''; _uid = ''; _inited = false;
+    el('prOrder').innerHTML = '<option value="">Loading…</option>';
+    el('prUID').innerHTML   = '<option value="">— Select Order first —</option>';
+    el('prSentInfo').style.display = 'none';
+    el('prUIDRow').style.display   = 'none';
+    el('prNewRack').value = '1P';
+    el('prRackPcs').value = '0';
+    el('prRackKg').value  = '0.000';
+    renderRackList();
+    el('prTally').innerHTML = '';
+    lockCard('prRacksCard');
+    lockCard('prSaveCard');
+    el('prBtnSave').disabled = true;
+    init();
+  }
+
+  function lockCard(id)   { const e = el(id); if (e) e.className = 'card card-locked'; }
+  function unlockCard(id) { const e = el(id); if (e) e.className = 'card'; }
+
+  return { init, onOrderChange, onUIDChange, stepRack, stepRackPcs, stepRackKg,
            addRack, removeRack, save, reset };
 
 })();
