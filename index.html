@@ -1415,7 +1415,7 @@ const Move = (() => {
 })();
 
 // ═══════════════════════════════════════════════════════════════════
-// GalvReturn — record material returning from galvanizing / plating
+// GalvReturn — record material returning from galvanizing
 // ═══════════════════════════════════════════════════════════════════
 const GalvReturn = (() => {
 
@@ -1434,7 +1434,7 @@ const GalvReturn = (() => {
     _inited = true;
     try {
       const [ordRes, cfg] = await Promise.all([
-        apiGet({ api: 'galvorders' }),
+        apiGet({ api: 'galvorders', process: 'Galvanizing' }),
         apiGet({ api: 'config' }),
       ]);
       _operators = cfg.operators || [];
@@ -1717,7 +1717,7 @@ const PlatingReturn = (() => {
     _inited = true;
     try {
       const [ordRes, cfg] = await Promise.all([
-        apiGet({ api: 'galvorders' }),
+        apiGet({ api: 'galvorders', process: 'Plating' }),
         apiGet({ api: 'config' }),
       ]);
       _operators = cfg.operators || [];
