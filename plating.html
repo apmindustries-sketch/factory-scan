@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Plating Portal — APM Industries</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -75,6 +76,38 @@ main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
   width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:15px;flex-shrink:0}
 .sent-info{padding:10px 18px;font-size:13px;color:var(--txt2);border-bottom:1px solid var(--border)}
 .tally{padding:10px 18px;font-size:12px;color:var(--txt3)}
+/* Scanner */
+.scan-row{display:flex;gap:8px}
+.scan-row .tag-input{flex:1}
+.scan-btn{background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  color:var(--txt2);padding:0 16px;font-size:13px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;gap:6px;white-space:nowrap;flex-shrink:0}
+.scan-btn svg{width:18px;height:18px}
+.scanner-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.92);
+  display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s}
+.scanner-overlay.open{opacity:1;pointer-events:auto}
+.scanner-box{width:100%;background:var(--surface);border-radius:20px 20px 0 0;
+  padding:20px 20px 40px;display:flex;flex-direction:column;gap:16px}
+.scanner-top{display:flex;align-items:center;justify-content:space-between}
+.scanner-top span{font-size:15px;font-weight:700;color:var(--txt)}
+.scanner-top button{background:var(--surface2);border:none;color:var(--txt2);
+  width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.scanner-viewport{position:relative;width:100%;aspect-ratio:1;border-radius:12px;
+  overflow:hidden;background:#000}
+#scanVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#scanCanvas{display:none}
+.scan-frame{position:absolute;inset:24px;pointer-events:none}
+.corner{position:absolute;width:24px;height:24px;border-color:var(--accent);border-style:solid}
+.corner.tl{top:0;left:0;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
+.corner.tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
+.corner.bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
+.corner.br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
+.scan-beam{position:absolute;left:0;right:0;height:2px;background:var(--accent);
+  box-shadow:0 0 8px var(--accent);top:0;animation:beamScan 2s ease-in-out infinite}
+@keyframes beamScan{0%{top:0%}50%{top:100%}100%{top:0%}}
+.scan-hint-overlay{text-align:center;color:var(--txt2);font-size:13px}
+@media (prefers-reduced-motion:reduce){.scan-beam{animation:none;top:50%}}
 /* Toast */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);
   background:#1E2333;border:1px solid var(--border);color:var(--txt);
@@ -87,6 +120,30 @@ main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
 </style>
 </head>
 <body>
+<!-- Hidden fallback input — opens native camera when getUserMedia is blocked -->
+<input type="file" id="photoInput" accept="image/*" capture="environment"
+       style="display:none" onchange="Scanner.onPhotoCapture(this)">
+
+<!-- CAMERA SCANNER OVERLAY -->
+<div class="scanner-overlay" id="scanOverlay">
+  <div class="scanner-box">
+    <div class="scanner-top">
+      <span>Scan Movement Tag</span>
+      <button onclick="Scanner.stop()">✕</button>
+    </div>
+    <div class="scanner-viewport">
+      <video id="scanVideo" playsinline autoplay muted></video>
+      <canvas id="scanCanvas"></canvas>
+      <div class="scan-frame">
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <div class="scan-beam"></div>
+      </div>
+    </div>
+    <p class="scan-hint-overlay">Hold steady — detects automatically</p>
+  </div>
+</div>
+
 <header>
   <div class="logo">APM <span>Industries</span></div>
   <div class="logo-sub">Plating Contractor Portal</div>
@@ -103,11 +160,20 @@ main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
   <div class="card">
     <div class="card-eyebrow">Step 1 — Scan Bundle Movement Tag</div>
     <div class="scan-wrap">
-      <input id="tagInput" class="tag-input" type="text"
-             inputmode="numeric" autocomplete="off" autocorrect="off"
-             autocapitalize="off" spellcheck="false"
-             placeholder="000"
-             oninput="Entry.onTagInput(this.value)">
+      <div class="scan-row">
+        <input id="tagInput" class="tag-input" type="text"
+               inputmode="numeric" autocomplete="off" autocorrect="off"
+               autocapitalize="off" spellcheck="false"
+               placeholder="000"
+               oninput="Entry.onTagInput(this.value)">
+        <button class="scan-btn" onclick="Scanner.start()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+            <rect x="7" y="7" width="10" height="10" rx="1"/>
+          </svg>
+          Scan
+        </button>
+      </div>
       <div class="scan-hint">Type or scan the numeric tag code printed on the rack label</div>
       <div id="eInfo"></div>
     </div>
@@ -271,6 +337,90 @@ function showTab(tab) {
   if (tab === 'return') Return.init();
   if (tab === 'entry')  setTimeout(() => el('tagInput').focus(), 50);
 }
+
+// ══════════════════════════════════════════════════════
+// CAMERA SCANNER
+// ══════════════════════════════════════════════════════
+const Scanner = (() => {
+  let _stream   = null;
+  let _scanning = false;
+
+  async function start() {
+    el('scanOverlay').classList.add('open');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
+        audio: false,
+      });
+      _stream   = stream;
+      _scanning = true;
+      const video = el('scanVideo');
+      video.srcObject = stream;
+      await video.play();
+      requestAnimationFrame(scanFrame);
+    } catch (err) {
+      stop();
+      el('photoInput').click();
+    }
+  }
+
+  function scanFrame() {
+    if (!_scanning) return;
+    const video  = el('scanVideo');
+    const canvas = el('scanCanvas');
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx  = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+      if (code && code.data.trim()) { stop(); onScanned(code.data.trim()); return; }
+    }
+    requestAnimationFrame(scanFrame);
+  }
+
+  function stop() {
+    _scanning = false;
+    if (_stream) { _stream.getTracks().forEach(t => t.stop()); _stream = null; }
+    el('scanOverlay').classList.remove('open');
+  }
+
+  function onPhotoCapture(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = el('scanCanvas');
+      let code = null;
+      for (const maxW of [800, 1200, 500]) {
+        const s = Math.min(1, maxW / img.width);
+        canvas.width  = Math.round(img.width  * s);
+        canvas.height = Math.round(img.height * s);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        code = jsQR(d.data, d.width, d.height, { inversionAttempts: 'attemptBoth' });
+        if (code && code.data.trim()) break;
+      }
+      if (code && code.data.trim()) onScanned(code.data.trim());
+      else toast('No QR found in photo — try again.', 'err');
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); toast('Could not read photo.', 'err'); };
+    img.src = url;
+  }
+
+  function onScanned(code) {
+    const tagInput = el('tagInput');
+    tagInput.value = code.trim();
+    Entry.onTagInput(code.trim());
+  }
+
+  return { start, stop, onPhotoCapture };
+})();
 
 // ══════════════════════════════════════════════════════
 // PRODUCTION ENTRY
