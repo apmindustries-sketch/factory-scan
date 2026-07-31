@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Plating Portal — APM Industries</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0F1117;--surface:#181C26;--surface2:#1E2333;
+  --border:#2A3045;--accent:#D4A017;--accent-lo:#2A2210;
+  --txt:#E8EAF0;--txt2:#8A94B0;--txt3:#556080;
+  --red:#EF4444;--red-lo:#2D1515;--green:#22C55E;--green-lo:#132A1A;
+  --card-radius:14px;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-size:15px;-webkit-font-smoothing:antialiased}
+header{padding:16px 20px 0;max-width:520px;margin:0 auto}
+.logo{font-size:17px;font-weight:800;letter-spacing:-.02em;color:var(--txt)}
+.logo span{color:var(--accent)}
+.logo-sub{font-size:12px;color:var(--txt3);margin-top:2px}
+.tabs{display:flex;gap:8px;padding:14px 20px 0;max-width:520px;margin:0 auto}
+.tab-btn{flex:1;padding:10px 8px;border:1px solid var(--border);border-radius:10px;
+  background:var(--surface);color:var(--txt2);font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .15s}
+.tab-btn.active{background:var(--accent);border-color:var(--accent);color:#000}
+main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius);
+  margin-bottom:14px;overflow:hidden}
+.card-eyebrow{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--accent);padding:14px 18px 0}
+.scan-wrap{padding:14px 18px}
+.tag-input{width:100%;background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:10px;padding:14px 16px;color:var(--txt);font-size:22px;font-weight:700;
+  text-align:center;letter-spacing:.1em;-webkit-appearance:none;appearance:none;
+  outline:none;transition:border-color .15s}
+.tag-input:focus{border-color:var(--accent)}
+.scan-hint{text-align:center;font-size:11px;color:var(--txt3);margin-top:6px}
+.info-card{background:var(--accent-lo);border:1px solid var(--accent);
+  border-radius:10px;padding:14px 16px;margin-top:10px}
+.info-row{display:flex;justify-content:space-between;align-items:center;
+  padding:5px 0;font-size:13px}
+.info-row:not(:last-child){border-bottom:1px solid #2A2A1A}
+.info-label{color:var(--txt3)}
+.info-val{font-weight:600;color:var(--txt)}
+.info-process{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;
+  font-weight:700;background:var(--surface2);color:var(--accent);border:1px solid var(--border)}
+.field-row{display:flex;align-items:center;padding:11px 18px;
+  border-bottom:1px solid var(--border)}
+.field-row:last-child{border-bottom:none}
+.field-label{font-size:12px;color:var(--txt2);width:90px;flex-shrink:0}
+.field-val{flex:1}
+.field-select,.field-input{width:100%;background:transparent;border:none;
+  color:var(--txt);font-size:14px;font-weight:600;outline:none;padding:0}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper-val{background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  color:var(--txt);font-size:14px;font-weight:600;text-align:center;padding:6px 10px;
+  width:100px;outline:none;-webkit-appearance:none;appearance:none}
+.stepper-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  color:var(--txt);font-size:18px;width:36px;height:36px;cursor:pointer;flex-shrink:0}
+.btn-save{width:100%;padding:15px;background:var(--accent);border:none;border-radius:12px;
+  color:#000;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:.02em;margin-top:4px}
+.btn-save:disabled{opacity:.45;cursor:not-allowed}
+.btn-cancel{width:100%;padding:12px;background:transparent;border:1px solid var(--border);
+  border-radius:12px;color:var(--txt2);font-size:14px;font-weight:600;cursor:pointer;margin-top:8px}
+.status-msg{padding:10px 18px;font-size:13px;font-weight:600;display:none}
+.status-msg.ok{color:var(--green);display:block}
+.status-msg.err{color:var(--red);display:block}
+/* Rack list */
+.rack-item{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 18px;border-bottom:1px solid var(--border);font-size:13px}
+.rack-label{font-weight:700;color:var(--accent);margin-right:6px}
+.rack-remove{background:var(--red-lo);border:none;color:var(--red);
+  width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:15px;flex-shrink:0}
+.sent-info{padding:10px 18px;font-size:13px;color:var(--txt2);border-bottom:1px solid var(--border)}
+.tally{padding:10px 18px;font-size:12px;color:var(--txt3)}
+/* Toast */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(40px);
+  background:#1E2333;border:1px solid var(--border);color:var(--txt);
+  padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;
+  white-space:nowrap;opacity:0;transition:all .25s;z-index:999;max-width:90vw;
+  white-space:normal;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{border-color:var(--green);color:var(--green)}
+#toast.err{border-color:var(--red);color:var(--red)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">APM <span>Industries</span></div>
+  <div class="logo-sub">Plating Contractor Portal</div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tabEntry" onclick="showTab('entry')">⬡ Production Entry</button>
+  <button class="tab-btn"        id="tabReturn" onclick="showTab('return')">↩ Plating Return</button>
+</div>
+
+<!-- ══════ PRODUCTION ENTRY ══════ -->
+<main id="entryPane">
+
+  <div class="card">
+    <div class="card-eyebrow">Step 1 — Scan Bundle Movement Tag</div>
+    <div class="scan-wrap">
+      <input id="tagInput" class="tag-input" type="text"
+             inputmode="numeric" autocomplete="off" autocorrect="off"
+             autocapitalize="off" spellcheck="false"
+             placeholder="000"
+             oninput="Entry.onTagInput(this.value)">
+      <div class="scan-hint">Type or scan the numeric tag code printed on the rack label</div>
+      <div id="eInfo"></div>
+    </div>
+  </div>
+
+  <div class="card" id="eDetailsCard" style="display:none">
+    <div class="card-eyebrow">Step 2 — Confirm &amp; Save</div>
+    <div class="field-row">
+      <div class="field-label">Done By</div>
+      <div class="field-val">
+        <select class="field-select" id="eDoneBy">
+          <option value="">— Select —</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Rack No</div>
+      <div class="field-val">
+        <input class="field-input" type="text" id="eRackNo" placeholder="e.g. 5">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Pcs</div>
+      <div class="field-val">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="ePcs" value="0" min="0">
+          <button class="stepper-btn" onclick="Entry.stepPcs(-1)">−</button>
+          <button class="stepper-btn" onclick="Entry.stepPcs(1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Kg</div>
+      <div class="field-val">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="eKg" value="0.000" step="0.001" min="0">
+          <button class="stepper-btn" onclick="Entry.stepKg(-1)">−</button>
+          <button class="stepper-btn" onclick="Entry.stepKg(1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div style="padding:14px 18px">
+      <button class="btn-save" id="eBtnSave" onclick="Entry.save()">Save — Move to Plating</button>
+      <button class="btn-cancel" onclick="Entry.reset()">Cancel</button>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══════ PLATING RETURN ══════ -->
+<main id="returnPane" style="display:none">
+
+  <div class="card">
+    <div class="card-eyebrow">Order</div>
+    <div class="field-row">
+      <div class="field-label">Order No</div>
+      <div class="field-val">
+        <select class="field-select" id="prOrder" onchange="Return.onOrderChange()">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row" id="prUIDRow" style="display:none">
+      <div class="field-label">Item (UID)</div>
+      <div class="field-val">
+        <select class="field-select" id="prUID" onchange="Return.onUIDChange()">
+          <option value="">— Select Order first —</option>
+        </select>
+      </div>
+    </div>
+    <div id="prSentInfo" class="sent-info" style="display:none"></div>
+  </div>
+
+  <div class="card" id="prRacksCard" style="display:none">
+    <div class="card-eyebrow">New Racks Received</div>
+    <div class="field-row">
+      <div class="field-label">Rack No</div>
+      <div class="field-val">
+        <div class="stepper">
+          <input class="stepper-val" type="text" id="prNewRack" value="1P">
+          <button class="stepper-btn" onclick="Return.stepRack(-1)">−</button>
+          <button class="stepper-btn" onclick="Return.stepRack(1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Pcs</div>
+      <div class="field-val">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="prRackPcs" value="0" min="0">
+          <button class="stepper-btn" onclick="Return.stepPcs(-1)">−</button>
+          <button class="stepper-btn" onclick="Return.stepPcs(1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-label">Kg</div>
+      <div class="field-val">
+        <div class="stepper">
+          <input class="stepper-val" type="number" id="prRackKg" value="0.000" step="0.001" min="0">
+          <button class="stepper-btn" onclick="Return.stepKg(-1)">−</button>
+          <button class="stepper-btn" onclick="Return.stepKg(1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div style="padding:10px 18px">
+      <button class="btn-save" onclick="Return.addRack()" style="background:var(--surface2);border:1px solid var(--accent);color:var(--accent);font-size:14px;padding:11px">+ Add Rack</button>
+    </div>
+    <div id="prRackList"></div>
+    <div class="tally" id="prTally"></div>
+  </div>
+
+  <div class="card" id="prSaveCard" style="display:none">
+    <div class="field-row">
+      <div class="field-label">Done By</div>
+      <div class="field-val">
+        <select class="field-select" id="prDoneBy">
+          <option value="">— Select —</option>
+        </select>
+      </div>
+    </div>
+    <div style="padding:14px 18px">
+      <button class="btn-save" id="prBtnSave" onclick="Return.save()">Save Plating Return</button>
+      <button class="btn-cancel" onclick="Return.reset()">Cancel</button>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbzwczRq8RgUAoR6TPP-1yy77JE-fJYbC3vcNq7vW2gapr8o-YOxU0wT30lHz-raNL8K/exec';
+
+async function apiGet(p) {
+  const url = API + '?' + Object.entries(p).map(([k,v]) => k+'='+encodeURIComponent(v)).join('&');
+  const r = await fetch(url);
+  return r.json();
+}
+async function apiPost(body) {
+  const r = await fetch(API, { method:'POST', body: JSON.stringify(body) });
+  return r.json();
+}
+
+let _toastTimer;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + (type || '');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+function el(id) { return document.getElementById(id); }
+
+function showTab(tab) {
+  el('entryPane').style.display  = tab === 'entry'  ? '' : 'none';
+  el('returnPane').style.display = tab === 'return' ? '' : 'none';
+  el('tabEntry').className  = 'tab-btn' + (tab === 'entry'  ? ' active' : '');
+  el('tabReturn').className = 'tab-btn' + (tab === 'return' ? ' active' : '');
+  if (tab === 'return') Return.init();
+  if (tab === 'entry')  setTimeout(() => el('tagInput').focus(), 50);
+}
+
+// ══════════════════════════════════════════════════════
+// PRODUCTION ENTRY
+// ══════════════════════════════════════════════════════
+const Entry = (() => {
+  let _tag    = null;
+  let _ops    = [];
+  let _timer  = null;
+
+  async function loadOps() {
+    if (_ops.length) return;
+    try {
+      const cfg = await apiGet({ api: 'config' });
+      _ops = cfg.operators || [];
+      el('eDoneBy').innerHTML =
+        '<option value="">— Select —</option>' +
+        _ops.map(o => '<option>' + o + '</option>').join('');
+    } catch(e) {}
+  }
+
+  function onTagInput(val) {
+    clearTimeout(_timer);
+    const trimmed = val.trim();
+    if (!trimmed) { el('eInfo').innerHTML = ''; el('eDetailsCard').style.display = 'none'; _tag = null; return; }
+    _timer = setTimeout(() => lookup(trimmed), 400);
+  }
+
+  async function lookup(code) {
+    el('eInfo').innerHTML = '<div style="padding:10px 0;font-size:13px;color:var(--txt3)">Looking up…</div>';
+    el('eDetailsCard').style.display = 'none';
+    try {
+      const info = await apiGet({ api: 'taginfo', tagCode: code });
+      if (!info.found) {
+        el('eInfo').innerHTML = '<div class="info-card" style="border-color:var(--red);background:var(--red-lo)">' +
+          '<span style="color:var(--red);font-size:13px">⚠ ' + (info.message || 'Tag not found') + '</span></div>';
+        _tag = null; return;
+      }
+      _tag = info;
+      el('eInfo').innerHTML =
+        '<div class="info-card">' +
+        '<div class="info-row"><span class="info-label">Order</span><span class="info-val">' + info.orderNo + ' — ' + info.company + '</span></div>' +
+        '<div class="info-row"><span class="info-label">Item</span><span class="info-val">UID ' + info.uid + ' · Ø' + info.dia + ' × ' + info.length + 'mm</span></div>' +
+        '<div class="info-row"><span class="info-label">Rack</span><span class="info-val">' + (info.rack || '—') + '</span></div>' +
+        '<div class="info-row"><span class="info-label">Qty</span><span class="info-val">' + (info.qtyPcs||0).toLocaleString() + ' pcs · ' + Number(info.qtyKg||0).toFixed(2) + ' kg</span></div>' +
+        '<div class="info-row"><span class="info-label">Current</span><span class="info-val"><span class="info-process">' + (info.process || '—') + '</span></span></div>' +
+        '</div>';
+      el('eRackNo').value = info.rack || '';
+      el('ePcs').value    = info.qtyPcs || 0;
+      el('eKg').value     = Number(info.qtyKg || 0).toFixed(3);
+      el('eDetailsCard').style.display = '';
+      await loadOps();
+    } catch(e) {
+      el('eInfo').innerHTML = '<div class="info-card" style="border-color:var(--red);background:var(--red-lo)"><span style="color:var(--red);font-size:13px">Error: ' + e.message + '</span></div>';
+    }
+  }
+
+  function stepPcs(d) { const i = el('ePcs'); i.value = Math.max(0, (parseInt(i.value)||0) + d); }
+  function stepKg(d)  { const i = el('eKg');  i.value = Math.max(0, (parseFloat(i.value)||0) + d).toFixed(3); }
+
+  async function save() {
+    if (!_tag) { toast('Scan a tag first.', 'err'); return; }
+    const doneBy = el('eDoneBy').value;
+    const rackNo = el('eRackNo').value.trim();
+    const pcs    = parseInt(el('ePcs').value) || 0;
+    const kg     = parseFloat(el('eKg').value) || 0;
+    if (!doneBy) { toast('Select Done By.', 'err'); return; }
+    if (!rackNo) { toast('Enter Rack No.', 'err'); return; }
+
+    el('eBtnSave').disabled = true;
+    try {
+      const res = await apiPost({
+        action: 'saveMove',
+        data: {
+          tagCode: _tag.tagCode,
+          bundleNo: _tag.bundleNo,
+          uid:      _tag.uid,
+          orderNo:  _tag.orderNo,
+          company:  _tag.company,
+          dia:      _tag.dia,
+          length:   _tag.length,
+          process:  'Plating',
+          doneBy,
+          qtyPcs:   pcs,
+          qtyKg:    kg,
+          rodWt:    pcs > 0 ? Math.round((kg / pcs) * 10000) / 10000 : 0,
+          rackNo,
+          remarks:  '',
+        },
+      });
+      el('eBtnSave').disabled = false;
+      if (res.success) {
+        toast('✓ Saved — moved to Plating', 'ok');
+        setTimeout(reset, 2000);
+      } else {
+        toast(res.message || 'Save failed.', 'err');
+      }
+    } catch(e) {
+      el('eBtnSave').disabled = false;
+      toast('Error: ' + e.message, 'err');
+    }
+  }
+
+  function reset() {
+    _tag = null;
+    el('tagInput').value = '';
+    el('eInfo').innerHTML = '';
+    el('eDetailsCard').style.display = 'none';
+    el('tagInput').focus();
+  }
+
+  return { onTagInput, stepPcs, stepKg, save, reset };
+})();
+
+// ══════════════════════════════════════════════════════
+// PLATING RETURN
+// ══════════════════════════════════════════════════════
+const Return = (() => {
+  let _orders  = [];
+  let _racks   = [];
+  let _orderNo = '';
+  let _uid     = '';
+  let _inited  = false;
+
+  async function init() {
+    if (_inited) return;
+    _inited = true;
+    try {
+      const [ordRes, cfg] = await Promise.all([
+        apiGet({ api: 'galvorders', process: 'Plating' }),
+        apiGet({ api: 'config' }),
+      ]);
+      _orders = ordRes.orders || [];
+      const ops = cfg.operators || [];
+
+      el('prOrder').innerHTML =
+        _orders.length
+          ? '<option value="">— Select Order —</option>' +
+            _orders.map(o => '<option value="' + o.orderNo + '">' + o.orderNo + ' — ' + o.company + '</option>').join('')
+          : '<option value="">No plating orders found</option>';
+
+      const opHtml = '<option value="">— Select —</option>' + ops.map(o => '<option>' + o + '</option>').join('');
+      el('prDoneBy').innerHTML = opHtml;
+    } catch(e) {
+      el('prOrder').innerHTML = '<option value="">Error loading</option>';
+      toast('Load error: ' + e.message, 'err');
+    }
+  }
+
+  function onOrderChange() {
+    const orderNo = el('prOrder').value;
+    const order   = _orders.find(o => o.orderNo === orderNo);
+    _racks = []; _orderNo = orderNo; _uid = '';
+    el('prUIDRow').style.display = order ? '' : 'none';
+    el('prRacksCard').style.display = 'none';
+    el('prSaveCard').style.display  = 'none';
+    renderRackList();
+    if (!order) return;
+    el('prUID').innerHTML =
+      '<option value="">— Select Item —</option>' +
+      order.uids.map(u => '<option value="' + u.uid + '">' + u.uid + ' — Ø' + u.dia + ' × ' + u.length + 'mm</option>').join('');
+  }
+
+  async function onUIDChange() {
+    const uid = el('prUID').value;
+    _racks = []; _uid = uid;
+    el('prRacksCard').style.display = 'none';
+    el('prSaveCard').style.display  = 'none';
+    el('prSentInfo').style.display  = 'none';
+    renderRackList();
+    if (!uid || !_orderNo) return;
+    try {
+      const [info, nxt] = await Promise.all([
+        apiGet({ api: 'platinginfo', orderNo: _orderNo, uid }),
+        apiGet({ api: 'galvnextrack', orderNo: _orderNo, suffix: 'P' }),
+      ]);
+      const si = el('prSentInfo');
+      si.style.display = 'block';
+      if (!info.totalSentPcs) {
+        si.innerHTML = '<strong style="color:var(--red)">⚠ No plating material found for this item</strong>';
+        return;
+      }
+      si.innerHTML =
+        '<strong>Sent to plating:</strong> ' +
+        (info.totalSentPcs||0).toLocaleString() + ' pcs · ' +
+        Number(info.totalSentKg||0).toFixed(2) + ' kg (' + (info.rackCount||0) + ' rack' + ((info.rackCount||0)!==1?'s':'') + ')';
+      el('prNewRack').value = nxt.next || '1P';
+    } catch(e) {
+      toast('Error: ' + e.message, 'err'); return;
+    }
+    el('prRacksCard').style.display = '';
+    el('prSaveCard').style.display  = '';
+  }
+
+  function stepRack(d) {
+    const i = el('prNewRack'); const v = i.value.trim();
+    const sfx = (v.match(/[A-Za-z]+$/)||['P'])[0];
+    i.value = Math.max(1, (parseInt(v)||1) + d) + sfx;
+  }
+  function stepPcs(d) { const i = el('prRackPcs'); i.value = Math.max(0,(parseInt(i.value)||0)+d); }
+  function stepKg(d)  { const i = el('prRackKg');  i.value = Math.max(0,(parseFloat(i.value)||0)+d).toFixed(3); }
+
+  function addRack() {
+    const rackNo = el('prNewRack').value.trim();
+    const pcs    = parseInt(el('prRackPcs').value) || 0;
+    const kg     = parseFloat(el('prRackKg').value) || 0;
+    if (!rackNo) { toast('Enter a rack number.', 'err'); return; }
+    if (pcs <= 0 && kg <= 0) { toast('Enter Pcs or Kg.', 'err'); return; }
+    if (_racks.some(r => r.rackNo.toUpperCase() === rackNo.toUpperCase())) {
+      toast('Rack ' + rackNo + ' already added.', 'err'); return; }
+    _racks.push({ rackNo, qtyPcs: pcs, qtyKg: kg });
+    const sfx = (rackNo.match(/[A-Za-z]+$/)||['P'])[0];
+    el('prNewRack').value = (Math.max(1, parseInt(rackNo)||1) + 1) + sfx;
+    el('prRackPcs').value = '0';
+    el('prRackKg').value  = '0.000';
+    renderRackList();
+  }
+
+  function removeRack(i) { _racks.splice(i,1); renderRackList(); }
+
+  function renderRackList() {
+    const list = el('prRackList');
+    if (!_racks.length) { list.innerHTML = ''; el('prTally').innerHTML = ''; return; }
+    list.innerHTML = _racks.map((r,i) =>
+      '<div class="rack-item"><span><span class="rack-label">' + r.rackNo + '</span>' +
+      r.qtyPcs.toLocaleString() + ' pcs · ' + Number(r.qtyKg).toFixed(2) + ' kg</span>' +
+      '<button class="rack-remove" onclick="Return.removeRack(' + i + ')">✕</button></div>'
+    ).join('');
+    const totPcs = _racks.reduce((s,r)=>s+r.qtyPcs,0);
+    const totKg  = _racks.reduce((s,r)=>s+Number(r.qtyKg),0);
+    el('prTally').innerHTML = 'Total: ' + totPcs.toLocaleString() + ' pcs · ' + totKg.toFixed(2) + ' kg';
+  }
+
+  async function save() {
+    if (!_orderNo || !_uid) { toast('Select Order and Item.', 'err'); return; }
+    if (!_racks.length)     { toast('Add at least one rack.', 'err'); return; }
+    const doneBy = el('prDoneBy').value;
+    if (!doneBy) { toast('Select Done By.', 'err'); return; }
+    const totPcs = _racks.reduce((s,r)=>s+r.qtyPcs,0);
+    const totKg  = _racks.reduce((s,r)=>s+Number(r.qtyKg),0);
+    el('prBtnSave').disabled = true;
+    try {
+      const res = await apiPost({
+        action:      'saveGalvReturn',
+        process:     'Plating',
+        orderNo:     _orderNo,
+        uid:         _uid,
+        returnedPcs: totPcs,
+        returnedKg:  totKg,
+        doneBy,
+        racks:       _racks,
+      });
+      el('prBtnSave').disabled = false;
+      if (res.success) {
+        const codes = (res.tagCodes||[]).join(', ');
+        toast('✓ Saved' + (codes ? ' — Tags: ' + codes : ''), 'ok');
+        setTimeout(reset, 2500);
+      } else {
+        toast(res.message || 'Save failed.', 'err');
+      }
+    } catch(e) {
+      el('prBtnSave').disabled = false;
+      toast('Error: ' + e.message, 'err');
+    }
+  }
+
+  function reset() {
+    _racks = []; _orderNo = ''; _uid = ''; _inited = false;
+    el('prOrder').innerHTML   = '<option value="">Loading…</option>';
+    el('prUID').innerHTML     = '<option value="">— Select Order first —</option>';
+    el('prUIDRow').style.display  = 'none';
+    el('prRacksCard').style.display = 'none';
+    el('prSaveCard').style.display  = 'none';
+    el('prSentInfo').style.display  = 'none';
+    renderRackList();
+  }
+
+  return { init, onOrderChange, onUIDChange, stepRack, stepPcs, stepKg, addRack, removeRack, save, reset };
+})();
+
+// Auto-focus tag input on load
+window.addEventListener('load', () => {
+  el('tagInput').focus();
+});
+</script>
+</body>
+</html>
