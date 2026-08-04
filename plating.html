@@ -150,8 +150,9 @@ main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
 </header>
 
 <div class="tabs">
-  <button class="tab-btn active" id="tabEntry" onclick="showTab('entry')">⬡ Production Entry</button>
-  <button class="tab-btn"        id="tabReturn" onclick="showTab('return')">↩ Plating Return</button>
+  <button class="tab-btn active" id="tabEntry" onclick="showTab('entry')">⬡ Entry</button>
+  <button class="tab-btn"        id="tabReturn" onclick="showTab('return')">↩ Return</button>
+  <button class="tab-btn"        id="tabStock" onclick="showTab('stock')">☰ Stock</button>
 </div>
 
 <!-- ══════ PRODUCTION ENTRY ══════ -->
@@ -303,6 +304,16 @@ main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
 
 </main>
 
+<!-- ══════ STOCK VIEW ══════ -->
+<main id="stockPane" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div id="stockTally" style="font-size:13px;color:var(--txt2)">Loading…</div>
+    <button onclick="Stock.load()" style="background:var(--surface2);border:1px solid var(--border);
+      border-radius:8px;color:var(--txt2);font-size:12px;padding:6px 12px;cursor:pointer">↻ Refresh</button>
+  </div>
+  <div id="stockOut"></div>
+</main>
+
 <div id="toast"></div>
 
 <script>
@@ -332,10 +343,13 @@ function el(id) { return document.getElementById(id); }
 function showTab(tab) {
   el('entryPane').style.display  = tab === 'entry'  ? '' : 'none';
   el('returnPane').style.display = tab === 'return' ? '' : 'none';
+  el('stockPane').style.display  = tab === 'stock'  ? '' : 'none';
   el('tabEntry').className  = 'tab-btn' + (tab === 'entry'  ? ' active' : '');
   el('tabReturn').className = 'tab-btn' + (tab === 'return' ? ' active' : '');
+  el('tabStock').className  = 'tab-btn' + (tab === 'stock'  ? ' active' : '');
   if (tab === 'return') Return.init();
   if (tab === 'entry')  setTimeout(() => el('tagInput').focus(), 50);
+  if (tab === 'stock')  Stock.load();
 }
 
 // ══════════════════════════════════════════════════════
@@ -698,6 +712,72 @@ const Return = (() => {
   }
 
   return { init, onOrderChange, onUIDChange, stepRack, stepPcs, stepKg, addRack, removeRack, save, reset };
+})();
+
+// ══════════════════════════════════════════════════════
+// STOCK VIEW
+// ══════════════════════════════════════════════════════
+const Stock = (() => {
+  let _loading = false;
+
+  async function load() {
+    if (_loading) return;
+    _loading = true;
+    el('stockTally').textContent = 'Loading…';
+    el('stockOut').innerHTML = '<p style="color:var(--txt3);font-size:13px;padding:20px 0;text-align:center">Loading…</p>';
+    try {
+      const data = await apiGet({ api: 'platingStock' });
+      if (data.error) {
+        el('stockTally').textContent = 'Error';
+        el('stockOut').innerHTML = '<p style="color:var(--red);font-size:13px">' + data.error + '</p>';
+        return;
+      }
+      const items = data.items || [];
+      if (!items.length) {
+        el('stockTally').textContent = 'Nothing at plating';
+        el('stockOut').innerHTML = '<p style="color:var(--txt3);font-size:13px;padding:20px 0;text-align:center">No material currently at plating contractor.</p>';
+        return;
+      }
+      el('stockTally').innerHTML =
+        '<strong style="color:var(--accent)">' + items.length + '</strong> item' + (items.length !== 1 ? 's' : '') +
+        ' &nbsp;·&nbsp; ' + data.totPcs.toLocaleString() + ' pcs' +
+        ' &nbsp;·&nbsp; ' + Number(data.totKg).toFixed(2) + ' kg';
+
+      // Group items by order
+      const byOrder = {};
+      items.forEach(it => {
+        if (!byOrder[it.orderNo]) byOrder[it.orderNo] = { company: it.company, items: [] };
+        byOrder[it.orderNo].items.push(it);
+      });
+
+      el('stockOut').innerHTML = Object.entries(byOrder).map(([orderNo, grp]) => `
+        <div class="card">
+          <div class="card-eyebrow">${orderNo} — ${grp.company}</div>
+          ${grp.items.map(it => `
+            <div style="padding:12px 18px;border-bottom:1px solid var(--border)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <span style="font-size:13px;font-weight:700;color:var(--txt)">UID ${it.uid} &nbsp;Ø${it.dia} × ${it.length}mm</span>
+                <span style="font-size:12px;color:var(--txt2)">${it.totalPcs.toLocaleString()} pcs · ${Number(it.totalKg).toFixed(2)} kg</span>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                ${it.racks.map(r => `
+                  <div style="background:var(--accent-lo);border:1px solid var(--accent);border-radius:8px;
+                    padding:4px 10px;font-size:12px;font-weight:700;color:var(--accent)">
+                    Rack ${r.rack}
+                    <span style="font-weight:400;color:var(--txt2);margin-left:4px">${r.pcs} pcs</span>
+                  </div>`).join('')}
+              </div>
+            </div>`).join('')}
+        </div>`).join('');
+    } catch(e) {
+      el('stockTally').textContent = 'Error';
+      el('stockOut').innerHTML = '<p style="color:var(--red);font-size:13px">Error: ' + e.message + '</p>';
+    } finally {
+      _loading = false;
+    }
+  }
+
+  return { load };
 })();
 
 // Auto-focus tag input on load
