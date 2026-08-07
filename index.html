@@ -480,7 +480,7 @@ select.code-input { appearance: none; }
       <div class="field-label">Rack No</div>
       <div class="field-value">
         <div class="stepper">
-          <input class="stepper-val" type="number" id="mRackNo" value="0" step="1" min="0">
+          <input class="stepper-val" type="text" id="mRackNo" value="0" style="letter-spacing:.06em">
           <button class="stepper-btn" onclick="Move.step(-1)">&#8722;</button>
           <button class="stepper-btn" onclick="Move.step(1)">&#43;</button>
         </div>
@@ -1275,7 +1275,7 @@ const Move = (() => {
       setSt('mBundleStatus', 'ok', '✓ ' + st.bundle.bundleId + ' loaded');
       renderSummary(st);
       el('mProcessCard').className = 'card card-ready';
-      el('mRackNo').value = st.last ? (parseInt(st.last.rack) || 0) : 0;
+      el('mRackNo').value = st.last ? String(st.last.rack || 0) : '0';
     } catch (err) {
       setSt('mBundleStatus', 'err', 'Server error: ' + err.message);
     }
@@ -1336,7 +1336,10 @@ const Move = (() => {
 
   function step(delta) {
     const inp = el('mRackNo');
-    inp.value = Math.max(0, (parseInt(inp.value) || 0) + delta);
+    const val = inp.value.trim();
+    const sfx = (val.match(/[A-Za-z]+$/) || [''])[0];
+    const num  = parseInt(val) || 0;
+    inp.value  = Math.max(0, num + delta) + sfx;
   }
 
   async function save() {
@@ -1365,7 +1368,7 @@ const Move = (() => {
       qtyPcs:     l ? Number(l.qtyPcs) : 0,
       qtyKg:      l ? Number(l.qtyKg)  : 0,
       rodWt:      l ? Number(l.rodWt)  : 0,
-      rackNo:     parseInt(el('mRackNo').value) || 0,
+      rackNo:     el('mRackNo').value.trim() || '0',
       remarks:    el('mRemarks').value.trim(),
       galvanizer: process === 'Galvanizing' ? el('mGalvanizer').value : '',
       dcNo:       process === 'Galvanizing' ? el('mDCNo').value.trim() : '',
