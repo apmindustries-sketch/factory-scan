@@ -732,11 +732,25 @@ select.code-input { appearance: none; }
 // ═══════════════════════════════════════════════════════════════════
 const API_URL = 'https://script.google.com/macros/s/AKfycbzwczRq8RgUAoR6TPP-1yy77JE-fJYbC3vcNq7vW2gapr8o-YOxU0wT30lHz-raNL8K/exec';
 
-async function apiGet(params) {
+async function apiGet(params, _attempt) {
   const qs = new URLSearchParams(params).toString();
-  const res = await fetch(API_URL + '?' + qs);
-  if (!res.ok) throw new Error('Server error ' + res.status);
-  return res.json();
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 30000);
+  try {
+    const res = await fetch(API_URL + '?' + qs, { signal: ctrl.signal });
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch(e) {
+      if ((_attempt || 0) < 1) {
+        await new Promise(r => setTimeout(r, 3000));
+        return apiGet(params, (_attempt || 0) + 1);
+      }
+      throw new Error('Server not ready — please try again.');
+    }
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 async function apiPost(body) {
