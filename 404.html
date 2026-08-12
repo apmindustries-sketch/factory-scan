@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>APM Industries</title>
+<script>
+  // Redirect to the main app, preserving any hash
+  const path = window.location.pathname.replace(/.*factory-scan\/?/, '');
+  if (path.indexOf('plating') !== -1) {
+    window.location.replace('/factory-scan/plating.html');
+  } else {
+    window.location.replace('/factory-scan/');
+  }
+</script>
+</head>
+<body>
+<p>Redirecting…</p>
+</body>
+</html>
