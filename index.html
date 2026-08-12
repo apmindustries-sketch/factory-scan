@@ -1180,6 +1180,7 @@ const Entry = (() => {
       qtyPcs, qtyKg,
       rodWt:    getRodWt(),
       rackNo:   getRackVal(),
+      submitId: Date.now() + '-' + Math.random().toString(36).slice(2),
     };
     try {
       const res = await apiPost({ action: 'saveEntry', data: data });
