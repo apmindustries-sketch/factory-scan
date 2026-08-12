@@ -735,18 +735,27 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzwczRq8RgUAoR6TPP-1yy7
 async function apiGet(params, _attempt) {
   const qs = new URLSearchParams(params).toString();
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 30000);
+  const t = setTimeout(() => ctrl.abort(), 55000);
   try {
-    const res = await fetch(API_URL + '?' + qs, { signal: ctrl.signal });
-    const text = await res.text();
+    let text;
+    try {
+      const res = await fetch(API_URL + '?' + qs, { signal: ctrl.signal });
+      text = await res.text();
+    } catch(fetchErr) {
+      if ((_attempt || 0) < 1) {
+        await new Promise(r => setTimeout(r, 4000));
+        return apiGet(params, (_attempt || 0) + 1);
+      }
+      throw new Error('Server not responding — please try again in a moment.');
+    }
     try {
       return JSON.parse(text);
     } catch(e) {
       if ((_attempt || 0) < 1) {
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 4000));
         return apiGet(params, (_attempt || 0) + 1);
       }
-      throw new Error('Server not ready — please try again.');
+      throw new Error('Server not ready — please try again in a moment.');
     }
   } finally {
     clearTimeout(t);
@@ -755,23 +764,32 @@ async function apiGet(params, _attempt) {
 
 async function apiPost(body, _attempt) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 30000);
+  const t = setTimeout(() => ctrl.abort(), 55000);
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(body),
-      signal: ctrl.signal,
-    });
-    const text = await res.text();
+    let text;
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+      text = await res.text();
+    } catch(fetchErr) {
+      if ((_attempt || 0) < 1) {
+        await new Promise(r => setTimeout(r, 4000));
+        return apiPost(body, (_attempt || 0) + 1);
+      }
+      throw new Error('Server not responding — please try again in a moment.');
+    }
     try {
       return JSON.parse(text);
     } catch(e) {
       if ((_attempt || 0) < 1) {
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 4000));
         return apiPost(body, (_attempt || 0) + 1);
       }
-      throw new Error('Server not ready — please try again.');
+      throw new Error('Server not ready — please try again in a moment.');
     }
   } finally {
     clearTimeout(t);
