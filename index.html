@@ -754,11 +754,11 @@ select.code-input { appearance: none; }
 <div id="transferMode" style="display:none">
 
   <section class="card" id="trBundleCard">
-    <div class="card-eyebrow">Step 1 — Scan Rack / Bundle QR</div>
+    <div class="card-eyebrow">Step 1 — Scan Rack QR</div>
     <div class="scan-row">
       <input id="trBundleInput" class="code-input" type="text"
-             placeholder="B000001" autocomplete="off"
-             autocorrect="off" autocapitalize="characters" spellcheck="false"
+             placeholder="Rack number (e.g. 470)" autocomplete="off"
+             autocorrect="off" autocapitalize="off" spellcheck="false"
              oninput="Transfer.onBundleInput(this.value)">
       <button class="scan-btn" onclick="App.startScan('trBundle')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2076,12 +2076,12 @@ const Transfer = (() => {
     _timer = setTimeout(() => fetchLastEntry(val.trim()), 500);
   }
 
-  async function fetchLastEntry(bundleId) {
-    setStatus('trBundleStatus', 'loading', 'Looking up bundle…');
+  async function fetchLastEntry(rackNo) {
+    setStatus('trBundleStatus', 'loading', 'Looking up rack…');
     _bundle = null;
     el('trConfirmPanel').style.display = 'none';
     try {
-      const data = await apiGet({ api: 'lastcutentry', bundle: bundleId });
+      const data = await apiGet({ api: 'lastcutentry', rack: rackNo });
       if (!data.found) {
         setStatus('trBundleStatus', 'err', data.message);
         el('trBundleCard').className = 'card card-err';
@@ -2089,9 +2089,8 @@ const Transfer = (() => {
       }
       _bundle = data;
       setStatus('trBundleStatus', 'ok',
-        '✓ ' + data.bundleNo + ' · UID ' + data.uid +
-        ' · Order ' + data.orderNo +
-        ' · Rack ' + (data.rackNo || '—') +
+        '✓ Rack ' + data.rackNo + ' · Bundle ' + data.bundleNo +
+        ' · UID ' + data.uid + ' · Order ' + data.orderNo +
         ' · ' + data.process + ' · ' + data.timestamp);
       el('trBundleCard').className = 'card card-ok';
       el('trPOCard').className = 'card card-ready';
@@ -2163,11 +2162,11 @@ const Transfer = (() => {
     try {
       const res = await apiPost({
         action:   'transferBundle',
-        bundleId: _bundle.bundleNo,
+        rowIndex: _bundle.rowIndex,
         newUid:   _newPO.uid,
       });
       if (res.ok) {
-        toast('✓ Transferred ' + _bundle.bundleNo + ' → UID ' + _newPO.uid + ' (' + _newPO.orderNo + ')', 'ok');
+        toast('✓ Transferred Rack ' + _bundle.rackNo + ' → UID ' + _newPO.uid + ' (' + _newPO.orderNo + ')', 'ok');
         setTimeout(reset, 2200);
       } else {
         toast('Error: ' + (res.error || 'Unknown error'), 'err');
