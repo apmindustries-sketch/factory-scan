@@ -277,6 +277,33 @@ select.code-input { appearance: none; }
 @media (prefers-reduced-motion: reduce) {
   .scan-beam { animation: none; top: 50%; }
 }
+
+/* Transfer module */
+.tr-compare {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 16px; margin: 16px 16px 0;
+}
+.tr-side {
+  flex: 1; display: flex; flex-direction: column; gap: 4px;
+}
+.tr-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  color: var(--txt3); text-transform: uppercase;
+}
+.tr-from .tr-uid { color: var(--red); font-size: 18px; font-weight: 700; }
+.tr-to   .tr-uid { color: var(--green); font-size: 18px; font-weight: 700; }
+.tr-detail { font-size: 12px; color: var(--txt2); }
+.tr-arrow {
+  font-size: 24px; color: var(--accent); flex-shrink: 0;
+}
+.btn-confirm {
+  display: block; width: calc(100% - 32px); margin: 12px 16px 16px;
+  background: var(--green); color: #000; border: none; border-radius: 10px;
+  font-size: 15px; font-weight: 700; padding: 14px;
+  cursor: pointer; letter-spacing: .02em;
+}
+.btn-confirm:disabled { opacity: .5; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -319,6 +346,7 @@ select.code-input { appearance: none; }
     <button class="mode-tab" id="tabMove"     onclick="App.setMode('move')">➜ Process Move</button>
     <button class="mode-tab" id="tabGalv"     onclick="App.setMode('galv')">⚖ Galv Return</button>
     <button class="mode-tab" id="tabPlating"  onclick="App.setMode('plating')">⬡ Plating Return</button>
+    <button class="mode-tab" id="tabTransfer" onclick="App.setMode('transfer')">⇄ Transfer</button>
   </div>
   <div class="step-track" id="stepTrack">
     <div class="step-item active" id="st1"><span class="step-dot">1</span><span>PO Item</span></div>
@@ -722,6 +750,49 @@ select.code-input { appearance: none; }
 
 </div><!-- /platingMode -->
 
+<!-- ══════════ TRANSFER MODE ══════════ -->
+<div id="transferMode" style="display:none">
+
+  <section class="card" id="trBundleCard">
+    <div class="card-eyebrow">Step 1 — Scan Rack / Bundle QR</div>
+    <div class="scan-row">
+      <input id="trBundleInput" class="code-input" type="text"
+             placeholder="B000001" autocomplete="off"
+             autocorrect="off" autocapitalize="characters" spellcheck="false"
+             oninput="Transfer.onBundleInput(this.value)">
+      <button class="scan-btn" onclick="App.startScan('trBundle')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+          <rect x="7" y="7" width="10" height="10" rx="1"/>
+        </svg>
+        Scan
+      </button>
+    </div>
+    <div id="trBundleStatus" class="status-row"></div>
+  </section>
+
+  <section class="card card-locked" id="trPOCard">
+    <div class="card-eyebrow">Step 2 — Scan New PO Item QR</div>
+    <div class="scan-row">
+      <input id="trPOInput" class="code-input" type="text"
+             placeholder="Scan or type UID" autocomplete="off"
+             autocorrect="off" autocapitalize="characters" spellcheck="false"
+             oninput="Transfer.onPOInput(this.value)" disabled>
+      <button class="scan-btn" id="trPOScanBtn" onclick="App.startScan('trPO')" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+          <rect x="7" y="7" width="10" height="10" rx="1"/>
+        </svg>
+        Scan
+      </button>
+    </div>
+    <div id="trPOStatus" class="status-row"></div>
+  </section>
+
+  <div id="trConfirmPanel" style="display:none"></div>
+
+</div><!-- /transferMode -->
+
   <div class="toast" id="toast"></div>
 
 </main>
@@ -828,6 +899,8 @@ const App = (() => {
       target === 'po'       ? 'Scan P.O. Item QR' :
       target === 'bundle'   ? 'Scan Bundle QR' :
       target === 'mbundle'  ? 'Scan Movement Tag' :
+      target === 'trBundle' ? 'Scan Rack / Bundle QR' :
+      target === 'trPO'     ? 'Scan New PO Item QR' :
                               'Scan Process QR';
     el('scanOverlay').classList.add('open');
 
@@ -918,22 +991,31 @@ const App = (() => {
       Move.fetchState(code);
     } else if (state.scanTarget === 'mprocess') {
       Move.onProcessScanned(code);
+    } else if (state.scanTarget === 'trBundle') {
+      el('trBundleInput').value = code;
+      Transfer.onBundleInput(code);
+    } else if (state.scanTarget === 'trPO') {
+      el('trPOInput').value = code;
+      Transfer.onPOInput(code);
     }
   }
 
   function setMode(mode) {
-    el('cutMode').style.display     = mode === 'cut'     ? 'block' : 'none';
-    el('moveMode').style.display    = mode === 'move'    ? 'block' : 'none';
-    el('galvMode').style.display    = mode === 'galv'    ? 'block' : 'none';
-    el('platingMode').style.display = mode === 'plating' ? 'block' : 'none';
-    el('stepTrack').style.display   = mode === 'cut'     ? 'flex'  : 'none';
-    el('tabCut').className     = 'mode-tab' + (mode === 'cut'     ? ' active' : '');
-    el('tabMove').className    = 'mode-tab' + (mode === 'move'    ? ' active' : '');
-    el('tabGalv').className    = 'mode-tab' + (mode === 'galv'    ? ' active' : '');
-    el('tabPlating').className = 'mode-tab' + (mode === 'plating' ? ' active' : '');
-    if (mode === 'move')    Move.init();
-    if (mode === 'galv')    GalvReturn.init();
-    if (mode === 'plating') PlatingReturn.init();
+    el('cutMode').style.display      = mode === 'cut'      ? 'block' : 'none';
+    el('moveMode').style.display     = mode === 'move'     ? 'block' : 'none';
+    el('galvMode').style.display     = mode === 'galv'     ? 'block' : 'none';
+    el('platingMode').style.display  = mode === 'plating'  ? 'block' : 'none';
+    el('transferMode').style.display = mode === 'transfer' ? 'block' : 'none';
+    el('stepTrack').style.display    = mode === 'cut'      ? 'flex'  : 'none';
+    el('tabCut').className      = 'mode-tab' + (mode === 'cut'      ? ' active' : '');
+    el('tabMove').className     = 'mode-tab' + (mode === 'move'     ? ' active' : '');
+    el('tabGalv').className     = 'mode-tab' + (mode === 'galv'     ? ' active' : '');
+    el('tabPlating').className  = 'mode-tab' + (mode === 'plating'  ? ' active' : '');
+    el('tabTransfer').className = 'mode-tab' + (mode === 'transfer' ? ' active' : '');
+    if (mode === 'move')     Move.init();
+    if (mode === 'galv')     GalvReturn.init();
+    if (mode === 'plating')  PlatingReturn.init();
+    if (mode === 'transfer') Transfer.reset();
   }
 
   let poTimer, bundleTimer;
@@ -1968,6 +2050,158 @@ const PlatingReturn = (() => {
 
   return { init, onOrderChange, onUIDChange, stepRack, stepRackPcs, stepRackKg,
            addRack, removeRack, save, reset };
+
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// Transfer — reassign last CutLog entry to a different PO item
+// ═══════════════════════════════════════════════════════════════════
+const Transfer = (() => {
+
+  let _bundle = null;
+  let _newPO  = null;
+  let _timer  = null;
+
+  const el = id => document.getElementById(id);
+
+  function setStatus(id, type, msg) {
+    const e = el(id);
+    e.className = 'status-row' + (type ? ' status-' + type : '');
+    e.textContent = msg;
+  }
+
+  function onBundleInput(val) {
+    clearTimeout(_timer);
+    if (!val.trim()) { resetBundle(); return; }
+    _timer = setTimeout(() => fetchLastEntry(val.trim()), 500);
+  }
+
+  async function fetchLastEntry(bundleId) {
+    setStatus('trBundleStatus', 'loading', 'Looking up bundle…');
+    _bundle = null;
+    el('trConfirmPanel').style.display = 'none';
+    try {
+      const data = await apiGet({ api: 'lastcutentry', bundle: bundleId });
+      if (!data.found) {
+        setStatus('trBundleStatus', 'err', data.message);
+        el('trBundleCard').className = 'card card-err';
+        return;
+      }
+      _bundle = data;
+      setStatus('trBundleStatus', 'ok',
+        '✓ ' + data.bundleNo + ' · UID ' + data.uid +
+        ' · Order ' + data.orderNo +
+        ' · Rack ' + (data.rackNo || '—') +
+        ' · ' + data.process + ' · ' + data.timestamp);
+      el('trBundleCard').className = 'card card-ok';
+      el('trPOCard').className = 'card card-ready';
+      el('trPOInput').disabled = false;
+      el('trPOScanBtn').disabled = false;
+      el('trPOInput').focus();
+    } catch (err) {
+      setStatus('trBundleStatus', 'err', 'Error: ' + err.message);
+    }
+  }
+
+  function onPOInput(val) {
+    clearTimeout(_timer);
+    if (!val.trim()) { resetPO(); return; }
+    _timer = setTimeout(() => fetchNewPO(val.trim()), 500);
+  }
+
+  async function fetchNewPO(uid) {
+    setStatus('trPOStatus', 'loading', 'Looking up PO item…');
+    _newPO = null;
+    el('trConfirmPanel').style.display = 'none';
+    try {
+      const data = await apiGet({ api: 'po', uid: uid });
+      if (!data.found) {
+        setStatus('trPOStatus', 'err', data.message);
+        el('trPOCard').className = 'card card-ready card-err';
+        return;
+      }
+      _newPO = data;
+      setStatus('trPOStatus', 'ok',
+        '✓ UID ' + data.uid + ' · ' + data.company + ' · Order ' + data.orderNo + ' · Ø' + data.dia);
+      el('trPOCard').className = 'card card-ok';
+      showConfirm();
+    } catch (err) {
+      setStatus('trPOStatus', 'err', 'Error: ' + err.message);
+    }
+  }
+
+  function showConfirm() {
+    if (!_bundle || !_newPO) return;
+    const panel = el('trConfirmPanel');
+    panel.innerHTML =
+      '<div class="tr-compare">' +
+        '<div class="tr-side tr-from">' +
+          '<div class="tr-label">FROM</div>' +
+          '<div class="tr-uid">' + _bundle.uid + '</div>' +
+          '<div class="tr-detail">Order ' + _bundle.orderNo + '</div>' +
+          '<div class="tr-detail">' + _bundle.company + '</div>' +
+          '<div class="tr-detail">Bundle ' + _bundle.bundleNo + ' · Rack ' + (_bundle.rackNo || '—') + '</div>' +
+        '</div>' +
+        '<div class="tr-arrow">→</div>' +
+        '<div class="tr-side tr-to">' +
+          '<div class="tr-label">TO</div>' +
+          '<div class="tr-uid">' + _newPO.uid + '</div>' +
+          '<div class="tr-detail">Order ' + _newPO.orderNo + '</div>' +
+          '<div class="tr-detail">' + _newPO.company + '</div>' +
+          '<div class="tr-detail">Ø' + _newPO.dia + ' × ' + _newPO.length + ' mm</div>' +
+        '</div>' +
+      '</div>' +
+      '<button class="btn-confirm" id="trConfirmBtn" onclick="Transfer.confirm()">✓ Confirm Transfer</button>';
+    panel.style.display = 'block';
+    setTimeout(() => { const b = el('trConfirmBtn'); if (b) b.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 80);
+  }
+
+  async function confirm() {
+    if (!_bundle || !_newPO) return;
+    const btn = el('trConfirmBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Transferring…'; }
+    try {
+      const res = await apiPost({
+        action:   'transferBundle',
+        bundleId: _bundle.bundleNo,
+        newUid:   _newPO.uid,
+      });
+      if (res.ok) {
+        toast('✓ Transferred ' + _bundle.bundleNo + ' → UID ' + _newPO.uid + ' (' + _newPO.orderNo + ')', 'ok');
+        setTimeout(reset, 2200);
+      } else {
+        toast('Error: ' + (res.error || 'Unknown error'), 'err');
+        if (btn) { btn.disabled = false; btn.textContent = '✓ Confirm Transfer'; }
+      }
+    } catch (err) {
+      toast('Error: ' + err.message, 'err');
+      if (btn) { btn.disabled = false; btn.textContent = '✓ Confirm Transfer'; }
+    }
+  }
+
+  function resetBundle() {
+    _bundle = null;
+    setStatus('trBundleStatus', '', '');
+    el('trBundleCard').className = 'card';
+    resetPO();
+  }
+
+  function resetPO() {
+    _newPO = null;
+    setStatus('trPOStatus', '', '');
+    el('trPOCard').className = 'card card-locked';
+    el('trPOInput').disabled = true;
+    el('trPOScanBtn').disabled = true;
+    el('trPOInput').value = '';
+    el('trConfirmPanel').style.display = 'none';
+  }
+
+  function reset() {
+    el('trBundleInput').value = '';
+    resetBundle();
+  }
+
+  return { onBundleInput, onPOInput, confirm, reset };
 
 })();
 </script>
