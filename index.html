@@ -1224,7 +1224,7 @@ const Entry = (() => {
         '<button class="stepper-btn" onclick="Entry.step(\'fRackNo\',-1,0)">&#8722;</button>' +
         '<button class="stepper-btn" onclick="Entry.step(\'fRackNo\',1,0)">&#43;</button>' +
         '</div>';
-      apiGet({ api: 'nextrack', orderNo: _po ? _po.orderNo : '', uid: _po ? _po.uid : '' }).then(r => {
+      apiGet({ api: 'nextrack', orderNo: _po ? _po.orderNo : '', uid: _po ? _po.uid : '', _t: Date.now() }).then(r => {
         const inp = document.getElementById('fRackNo');
         if (inp) inp.value = r.next;
       }).catch(() => {});
