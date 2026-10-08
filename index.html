@@ -1217,18 +1217,29 @@ const Entry = (() => {
   function onProcessChange() {
     const isCutting = document.getElementById('fProcess').value === 'Cutting';
     const rackField = document.getElementById('rackField');
+    const btn = document.getElementById('btnSave');
     if (isCutting) {
       rackField.innerHTML =
         '<div class="stepper">' +
-        '<input class="stepper-val" type="number" id="fRackNo" value="1" step="1" min="1">' +
+        '<input class="stepper-val" type="number" id="fRackNo" value="1" step="1" min="1" disabled>' +
+        '<span style="font-size:11px;color:var(--muted);margin-left:6px">Loading…</span>' +
+        '</div>';
+      if (btn) btn.disabled = true;
+      const mkStepper = v =>
+        '<div class="stepper">' +
+        '<input class="stepper-val" type="number" id="fRackNo" value="' + v + '" step="1" min="1">' +
         '<button class="stepper-btn" onclick="Entry.step(\'fRackNo\',-1,0)">&#8722;</button>' +
         '<button class="stepper-btn" onclick="Entry.step(\'fRackNo\',1,0)">&#43;</button>' +
         '</div>';
       apiGet({ api: 'nextrack', orderNo: _po ? _po.orderNo : '', uid: _po ? _po.uid : '', _t: Date.now() }).then(r => {
-        const inp = document.getElementById('fRackNo');
-        if (inp) inp.value = r.next;
-      }).catch(() => {});
+        rackField.innerHTML = mkStepper(r.next);
+      }).catch(() => {
+        rackField.innerHTML = mkStepper(1);
+      }).finally(() => {
+        if (btn) btn.disabled = false;
+      });
     } else {
+      if (btn) btn.disabled = false;
       rackField.innerHTML = '<select class="field-select" id="fRackNo"><option>Loading…</option></select>';
       apiGet({ api: 'racks', orderNo: _po ? _po.orderNo : '' }).then(r => {
         const sel = document.getElementById('fRackNo');
