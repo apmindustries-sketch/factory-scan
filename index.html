@@ -348,6 +348,7 @@ select.code-input { appearance: none; }
     <button class="mode-tab" id="tabGalv"     onclick="App.setMode('galv')">⚖ Galv Return</button>
     <button class="mode-tab" id="tabPlating"  onclick="App.setMode('plating')">⬡ Plating Return</button>
     <button class="mode-tab" id="tabTransfer" onclick="App.setMode('transfer')">⇄ Transfer</button>
+    <button class="mode-tab" id="tabDelete"   onclick="App.setMode('delete')">🗑 Delete</button>
   </div>
   <div class="step-track" id="stepTrack">
     <div class="step-item active" id="st1"><span class="step-dot">1</span><span>PO Item</span></div>
@@ -794,6 +795,22 @@ select.code-input { appearance: none; }
 
 </div><!-- /transferMode -->
 
+<!-- ══════════ DELETE ENTRY MODE ══════════ -->
+<div id="deleteMode" style="display:none">
+
+  <section class="card">
+    <div class="card-eyebrow">Delete CutLog Entry</div>
+    <div class="scan-row">
+      <input id="delUidInput" class="code-input" type="text" inputmode="numeric" placeholder="Type UID…"
+             oninput="DeleteEntry.onInput(this.value)">
+      <button class="scan-btn" onclick="DeleteEntry.load()">Load</button>
+    </div>
+  </section>
+
+  <div id="delResults"></div>
+
+</div><!-- /deleteMode -->
+
   <div class="toast" id="toast"></div>
 
 </main>
@@ -1007,12 +1024,14 @@ const App = (() => {
     el('galvMode').style.display     = mode === 'galv'     ? 'block' : 'none';
     el('platingMode').style.display  = mode === 'plating'  ? 'block' : 'none';
     el('transferMode').style.display = mode === 'transfer' ? 'block' : 'none';
+    el('deleteMode').style.display   = mode === 'delete'   ? 'block' : 'none';
     el('stepTrack').style.display    = mode === 'cut'      ? 'flex'  : 'none';
     el('tabCut').className      = 'mode-tab' + (mode === 'cut'      ? ' active' : '');
     el('tabMove').className     = 'mode-tab' + (mode === 'move'     ? ' active' : '');
     el('tabGalv').className     = 'mode-tab' + (mode === 'galv'     ? ' active' : '');
     el('tabPlating').className  = 'mode-tab' + (mode === 'plating'  ? ' active' : '');
     el('tabTransfer').className = 'mode-tab' + (mode === 'transfer' ? ' active' : '');
+    el('tabDelete').className   = 'mode-tab' + (mode === 'delete'   ? ' active' : '');
     if (mode === 'move')     Move.init();
     if (mode === 'galv')     GalvReturn.init();
     if (mode === 'plating')  PlatingReturn.init();
@@ -2213,6 +2232,85 @@ const Transfer = (() => {
   }
 
   return { onBundleInput, onPOInput, confirm, reset };
+
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// DeleteEntry — look up CutLog entries by UID and delete them
+// ═══════════════════════════════════════════════════════════════════
+const DeleteEntry = (() => {
+
+  let _timer = null;
+
+  function onInput(val) {
+    clearTimeout(_timer);
+    if (!val.trim()) { el('delResults').innerHTML = ''; return; }
+    _timer = setTimeout(() => load(), 600);
+  }
+
+  async function load() {
+    const uid = (el('delUidInput').value || '').trim();
+    if (!uid) return;
+    const out = el('delResults');
+    out.innerHTML = '<p style="color:var(--muted);padding:16px 0;text-align:center">Loading…</p>';
+    try {
+      const data = await apiGet({ api: 'uidentries', uid, _t: Date.now() });
+      if (data.error) { out.innerHTML = '<p style="color:var(--err);padding:16px 0;text-align:center">' + data.error + '</p>'; return; }
+      const entries = data.entries || [];
+      if (!entries.length) { out.innerHTML = '<p style="color:var(--muted);padding:16px 0;text-align:center">No entries found for UID ' + uid + '</p>'; return; }
+      out.innerHTML = renderTable(entries);
+    } catch (e) {
+      out.innerHTML = '<p style="color:var(--err);padding:16px 0;text-align:center">Error: ' + e.message + '</p>';
+    }
+  }
+
+  function renderTable(entries) {
+    const rows = entries.map(e => {
+      const dt = e.ts ? new Date(e.ts).toLocaleString('en-IN', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false }) : '—';
+      const delBtn = e.tagCode
+        ? `<button onclick="DeleteEntry.remove('${e.tagCode}','${e.process}',${e.rack},${e.pcs})"
+             style="background:none;border:1px solid var(--err,#e53);color:var(--err,#e53);border-radius:4px;padding:3px 8px;cursor:pointer;font-size:12px">✕ Del</button>`
+        : '<span style="color:var(--muted);font-size:11px">no tag</span>';
+      return `<tr>
+        <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-weight:700;color:var(--accent)">${e.process}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid var(--border)">Rack ${e.rack}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right">${Number(e.pcs).toLocaleString()}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid var(--border);color:var(--txt2)">${e.operator||'—'}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid var(--border);color:var(--muted);font-size:11px">${dt}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:center">${delBtn}</td>
+      </tr>`;
+    }).join('');
+    return `<section class="card" style="padding:0;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:var(--surface2)">
+          <th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Process</th>
+          <th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Rack</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Pcs</th>
+          <th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Operator</th>
+          <th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Time</th>
+          <th style="padding:8px 10px"></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>`;
+  }
+
+  async function remove(tagCode, process, rack, pcs) {
+    if (!confirm('Delete ' + process + ' Rack ' + rack + ' (' + Number(pcs).toLocaleString() + ' pcs)?\nThis will restore the material to the bundle.')) return;
+    try {
+      const res = await apiPost({ action: 'deleteEntry', tagCode });
+      if (res.ok) {
+        toast('✓ ' + process + ' Rack ' + rack + ' deleted', 'ok');
+        load();
+      } else {
+        toast('Error: ' + (res.error || 'Unknown'), 'err');
+      }
+    } catch (e) {
+      toast('Error: ' + e.message, 'err');
+    }
+  }
+
+  return { onInput, load, remove };
 
 })();
 </script>
