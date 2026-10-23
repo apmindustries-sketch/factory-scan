@@ -26,10 +26,6 @@ header{padding:16px 20px 0;max-width:520px;margin:0 auto;display:flex;
 .logo{font-size:17px;font-weight:800;letter-spacing:-.02em;color:var(--txt)}
 .logo span{color:var(--accent)}
 .logo-sub{font-size:12px;color:var(--txt3);margin-top:2px}
-.who{text-align:right;font-size:12px;color:var(--txt2)}
-.who strong{display:block;color:var(--txt);font-size:13px}
-.link-btn{background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;
-  cursor:pointer;padding:2px 0}
 .tabs{display:flex;gap:8px;padding:14px 20px 0;max-width:520px;margin:0 auto}
 .tab-btn{flex:1;padding:12px 8px;border:1px solid var(--border);border-radius:10px;
   background:var(--surface);color:var(--txt2);font-size:14px;font-weight:700;cursor:pointer;
@@ -109,13 +105,6 @@ main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
 .done.in .done-title{color:var(--green)}
 .done.out .done-title{color:var(--out)}
 .done-line{font-size:13px;color:var(--txt2);margin-top:4px;font-variant-numeric:tabular-nums}
-/* Login */
-.login{max-width:360px;margin:14vh auto 0;padding:0 20px;text-align:center}
-.login .logo{font-size:24px}
-.login .logo-sub{margin-bottom:32px}
-.login-label{display:block;font-size:13px;font-weight:600;color:var(--txt2);margin-bottom:10px}
-.pin{letter-spacing:.4em;margin-bottom:14px}
-.login-hint{font-size:12px;color:var(--txt3);margin-top:14px}
 /* Scanner */
 .scan-row{display:flex;gap:8px}
 .scan-row .tag-input{flex:1;min-width:0}
@@ -182,28 +171,12 @@ main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
   </div>
 </div>
 
-<!-- ══════ LOGIN ══════ -->
-<section id="loginView" class="login" style="display:none">
-  <div class="logo">APM <span>Stores</span></div>
-  <div class="logo-sub">Stock In · Stock Out</div>
-  <label class="login-label" for="pinInput">Enter your PIN</label>
-  <input id="pinInput" class="tag-input pin" type="password" inputmode="numeric"
-         autocomplete="off" maxlength="8" placeholder="••••"
-         onkeydown="if (event.key === 'Enter') login()">
-  <button class="btn-save" id="loginBtn" onclick="login()">Log in</button>
-  <p class="login-hint">Ask the store manager for your PIN.</p>
-</section>
-
 <!-- ══════ APP ══════ -->
-<div id="appView" style="display:none">
+<div id="appView">
   <header>
     <div>
       <div class="logo">APM <span>Stores</span></div>
       <div class="logo-sub">Stock In · Stock Out</div>
-    </div>
-    <div class="who">
-      <strong id="whoName"></strong>
-      <button class="link-btn" onclick="logout()">Log out</button>
     </div>
   </header>
 
@@ -273,6 +246,10 @@ main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
         <div class="field-label">Remarks</div>
         <div class="field-val"><input class="field-input" id="inRemarks" placeholder="Optional"></div>
       </div>
+      <div class="field-row">
+        <div class="field-label">Your Name</div>
+        <div class="field-val"><input class="field-input" id="inUser" placeholder="Who is receiving" autocomplete="name"></div>
+      </div>
       <div style="padding:14px 18px">
         <button class="btn-save in" id="inSave" onclick="In.save()">Save Stock In</button>
         <button class="btn-cancel" onclick="In.reset()">Cancel</button>
@@ -323,6 +300,10 @@ main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
       <div class="field-row">
         <div class="field-label">Remarks</div>
         <div class="field-val"><input class="field-input" id="outRemarks" placeholder="Optional"></div>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Your Name</div>
+        <div class="field-val"><input class="field-input" id="outUser" placeholder="Who is issuing" autocomplete="name"></div>
       </div>
       <div style="padding:14px 18px">
         <button class="btn-save out" id="outSave" onclick="Out.save()">Save Stock Out</button>
@@ -384,23 +365,18 @@ function doneCard(kind, lines, statusId) {
 }
 
 // ══════════════════════════════════════════════════════
-// SESSION (worker PIN, checked by the server on every call)
+// SERVER + WORKER NAME (remembered on this phone)
 // ══════════════════════════════════════════════════════
-let pin = store.get('apmStoresPin');
-let workerName = store.get('apmStoresName');
-
 async function api(action, data) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 60000);
   try {
     const r = await fetch(INV_API, {
       method: 'POST',
-      body: JSON.stringify(Object.assign({ action, pin }, data || {})),
+      body: JSON.stringify(Object.assign({ action }, data || {})),
       signal: ctrl.signal,
     });
-    const d = await r.json();
-    if (d.auth === false && action !== 'login') logout('Your PIN is not valid any more. Please log in again.');
-    return d;
+    return await r.json();
   } catch (e) {
     return { error: e.name === 'AbortError'
       ? 'The server did not answer. Check the internet and try again.'
@@ -410,35 +386,16 @@ async function api(action, data) {
   }
 }
 
-async function login() {
-  const entered = el('pinInput').value.trim();
-  if (!entered) { toast('Enter your PIN.', 'err'); return; }
-  el('loginBtn').disabled = true;
-  pin = entered;
-  const d = await api('login');
-  el('loginBtn').disabled = false;
-  if (!d.ok) { pin = ''; toast(d.error || 'Login failed.', 'err'); return; }
-  workerName = d.name;
-  store.set('apmStoresPin', pin);
-  store.set('apmStoresName', workerName);
-  el('pinInput').value = '';
-  showApp();
+function workerName(inputId) {
+  const name = el(inputId).value.trim();
+  if (!name) { toast('Enter your name.', 'err'); el(inputId).focus(); }
+  return name;
 }
 
-function logout(msg) {
-  pin = ''; workerName = '';
-  store.del('apmStoresPin'); store.del('apmStoresName');
-  In.reset(); Out.reset();
-  el('appView').style.display = 'none';
-  el('loginView').style.display = '';
-  if (msg) toast(msg, 'err');
-}
-
-function showApp() {
-  el('loginView').style.display = 'none';
-  el('appView').style.display = '';
-  el('whoName').textContent = workerName;
-  showTab(store.get('apmStoresTab') === 'out' ? 'out' : 'in');
+function rememberName(name) {
+  store.set('apmStoresUser', name);
+  el('inUser').value = name;
+  el('outUser').value = name;
 }
 
 function showTab(t) {
@@ -664,12 +621,15 @@ const In = (() => {
       if (!(q > 0)) { toast('Enter the ' + (item.mtype === 'WEIGHT' ? 'weight' : 'quantity') + '.', 'err'); return; }
       data.qty = q;
     }
+    data.user = workerName('inUser');
+    if (!data.user) return;
 
     const btn = el('inSave');
     btn.disabled = true; btn.textContent = 'Saving…';
     const d = await api('stockIn', data);
     btn.disabled = false; btn.textContent = 'Save Stock In';
     if (!d.ok) { toast(d.error || 'Save failed.', 'err'); return; }
+    rememberName(data.user);
 
     const printing = bags && d.bagIds && d.bagIds.length;
     el('inDone').innerHTML = doneCard('in', [
@@ -786,6 +746,8 @@ const Out = (() => {
     if (bag && q > parseFloat(bag.current) + 1e-9) {
       toast('Only ' + fmt(bag.current) + ' ' + bag.uom + ' is left in this bag.', 'err'); return;
     }
+    const user = workerName('outUser');
+    if (!user) return;
 
     const btn = el('outSave');
     btn.disabled = true; btn.textContent = 'Saving…';
@@ -795,9 +757,11 @@ const Out = (() => {
       party: el('outParty').value.trim(),
       ref: el('outRef').value.trim(),
       remarks: el('outRemarks').value.trim(),
+      user,
     });
     btn.disabled = false; btn.textContent = 'Save Stock Out';
     if (!d.ok) { toast(d.error || 'Save failed.', 'err'); return; }
+    rememberName(user);
 
     el('outDone').innerHTML = doneCard('out', [
       fmt(d.issued) + ' ' + esc(d.uom) + ' of ' + esc(d.itemName) + (bag ? ' from Bag ' + esc(bagNo(bag.id)) : ''),
@@ -820,17 +784,11 @@ const Out = (() => {
 // ══════════════════════════════════════════════════════
 // START
 // ══════════════════════════════════════════════════════
-window.addEventListener('load', async () => {
-  if (!pin) { el('loginView').style.display = ''; return; }
-  showApp();
-  // Re-check the saved PIN: the worker may have been removed from the Workers sheet.
-  const d = await api('login');
-  if (d.auth === false) logout('Your PIN is not valid any more. Please log in again.');
-  else if (d.ok && d.name !== workerName) {
-    workerName = d.name;
-    store.set('apmStoresName', workerName);
-    el('whoName').textContent = workerName;
-  }
+window.addEventListener('load', () => {
+  const name = store.get('apmStoresUser');
+  el('inUser').value = name;
+  el('outUser').value = name;
+  showTab(store.get('apmStoresTab') === 'out' ? 'out' : 'in');
 });
 </script>
 </body>
