@@ -45,6 +45,14 @@ main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
 .tag-input:focus{border-color:var(--accent)}
 .tag-input::placeholder{color:var(--txt3);font-size:15px;letter-spacing:.02em;font-weight:600}
 .hint-line{padding:10px 0 0;font-size:13px;color:var(--txt3)}
+.ac-list{display:none;margin-top:8px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.ac-list.show{display:block}
+.ac-item{display:block;width:100%;padding:12px 14px;border:none;border-bottom:1px solid var(--border);
+  background:var(--surface2);color:var(--txt);text-align:left;cursor:pointer}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.active{background:var(--accent-lo)}
+.ac-name{display:block;font-size:15px;font-weight:700}
+.ac-meta{display:block;font-size:12px;color:var(--txt3);margin-top:2px}
 .info-card{background:var(--accent-lo);border:1px solid var(--accent);
   border-radius:10px;padding:12px 16px;margin-top:10px}
 .info-name{font-size:16px;font-weight:800;margin-bottom:4px}
@@ -190,11 +198,11 @@ main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
     <div id="inDone"></div>
 
     <div class="card">
-      <div class="card-eyebrow">Step 1 — Scan item label</div>
+      <div class="card-eyebrow">Step 1 — Scan or search item</div>
       <div class="scan-wrap">
         <div class="scan-row">
           <input id="inCode" class="tag-input" type="text" autocomplete="off" autocorrect="off"
-                 autocapitalize="characters" spellcheck="false" placeholder="Item code"
+                 autocapitalize="off" spellcheck="false" placeholder="Item code or name"
                  oninput="In.onCode(this.value)">
           <button class="scan-btn" onclick="Scanner.start('in')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -262,11 +270,11 @@ main{max-width:520px;margin:0 auto;padding:14px 20px 80px}
     <div id="outDone"></div>
 
     <div class="card">
-      <div class="card-eyebrow">Step 1 — Scan bag or item label</div>
+      <div class="card-eyebrow">Step 1 — Scan bag or search item</div>
       <div class="scan-wrap">
         <div class="scan-row">
           <input id="outCode" class="tag-input" type="text" autocomplete="off" autocorrect="off"
-                 autocapitalize="characters" spellcheck="false" placeholder="Bag or item code"
+                 autocapitalize="off" spellcheck="false" placeholder="Bag code, item code or name"
                  oninput="Out.onCode(this.value)">
           <button class="scan-btn" onclick="Scanner.start('out')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -517,6 +525,94 @@ async function sendLabels(labels, statusEl) {
 }
 
 // ══════════════════════════════════════════════════════
+// ITEM SEARCH (type part of a name or code, pick from the list)
+// ══════════════════════════════════════════════════════
+const dispCode = c => String(c).replace(/^[^0-9]*/, '') || String(c);
+const codeKey  = c => String(c).toUpperCase().replace(/^[^0-9]*/, '').replace(/^0+/, '') || '0';
+
+let _itemsP = null, _itemsAt = 0;
+function itemList() {
+  if (!_itemsP || Date.now() - _itemsAt > 120000) {
+    _itemsAt = Date.now();
+    _itemsP = api('items').then(d => { if (!d.items) _itemsAt = 0; return d.items || null; });
+  }
+  return _itemsP;
+}
+
+// While typing, only look up a complete bag ID or an existing item code; names show the list instead.
+async function isCode(text) {
+  const t = String(text).trim().toUpperCase();
+  if (/^BCH-\d{5}$/.test(t)) return true;
+  const codeLike = /^[A-Z]*-?\d+$/.test(t);
+  const items = await itemList();
+  if (!items) return codeLike;
+  return items.some(it => {
+    const c = String(it.code).toUpperCase();
+    return c === t || (codeLike && codeKey(c) === codeKey(t));
+  });
+}
+
+function matchItems(items, q) {
+  q = String(q).trim().toLowerCase();
+  if (!q) return [];
+  const words = q.split(/\s+/);
+  return items.map(it => {
+    const name = String(it.name).toLowerCase(), code = String(it.code).toLowerCase();
+    const hay = name + ' ' + code + ' ' + String(it.category || '').toLowerCase();
+    if (!words.every(w => hay.includes(w))) return null;
+    const s = (code === q || dispCode(code) === q) ? 0 : name.startsWith(q) ? 1 : name.includes(q) ? 2 : 3;
+    return { it, s };
+  }).filter(Boolean)
+    .sort((a, b) => a.s - b.s || String(a.it.name).localeCompare(String(b.it.name)))
+    .slice(0, 8).map(x => x.it);
+}
+
+function attachItemSearch(inputId, onPick) {
+  const input = el(inputId);
+  const list = document.createElement('div');
+  let shown = [], active = -1, timer = null;
+  list.className = 'ac-list';
+  input.parentElement.insertAdjacentElement('afterend', list);
+
+  const hide = () => { shown = []; active = -1; list.innerHTML = ''; list.classList.remove('show'); };
+  const render = () => {
+    list.innerHTML = shown.map((it, i) =>
+      '<button type="button" class="ac-item' + (i === active ? ' active' : '') + '" data-i="' + i + '">' +
+      '<span class="ac-name">' + esc(it.name) + '</span>' +
+      '<span class="ac-meta">Code ' + esc(dispCode(it.code)) + (it.category ? ' · ' + esc(it.category) : '') + '</span></button>'
+    ).join('');
+    list.classList.toggle('show', shown.length > 0);
+  };
+  const pick = i => { const it = shown[i]; if (!it) return; hide(); onPick(String(it.code)); };
+
+  input.addEventListener('focus', () => { itemList(); });
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const q = input.value;
+    if (!q.trim() || /^BCH-/i.test(q.trim())) { hide(); return; }
+    timer = setTimeout(async () => {
+      const items = await itemList();
+      if (input.value !== q) return;
+      shown = items ? matchItems(items, q) : [];
+      active = -1;
+      render();
+    }, 200);
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (shown.length) pick(active >= 0 ? active : 0);
+      else if (input.value.trim()) onPick(input.value.trim());
+    } else if (shown.length && e.key === 'ArrowDown') { active = Math.min(shown.length - 1, active + 1); render(); e.preventDefault(); }
+    else if (shown.length && e.key === 'ArrowUp')   { active = Math.max(0, active - 1); render(); e.preventDefault(); }
+    else if (e.key === 'Escape') hide();
+  });
+  list.addEventListener('mousedown', e => e.preventDefault());
+  list.addEventListener('click', e => { const b = e.target.closest('.ac-item'); if (b) pick(+b.dataset.i); });
+  document.addEventListener('click', e => { if (e.target !== input && !list.contains(e.target)) hide(); });
+}
+
+// ══════════════════════════════════════════════════════
 // STOCK IN
 // ══════════════════════════════════════════════════════
 const In = (() => {
@@ -526,8 +622,9 @@ const In = (() => {
 
   function onCode(v) {
     clearTimeout(timer);
-    if (!v.trim()) { clearItem(); return; }
-    timer = setTimeout(() => lookup(v.trim()), 500);
+    clearItem();
+    if (!v.trim()) return;
+    timer = setTimeout(async () => { if (await isCode(v)) lookup(v.trim()); }, 500);
   }
 
   function clearItem() {
@@ -672,8 +769,9 @@ const Out = (() => {
 
   function onCode(v) {
     clearTimeout(timer);
-    if (!v.trim()) { clearItem(); return; }
-    timer = setTimeout(() => lookup(v.trim()), 500);
+    clearItem();
+    if (!v.trim()) return;
+    timer = setTimeout(async () => { if (await isCode(v)) lookup(v.trim()); }, 500);
   }
 
   function clearItem() {
@@ -785,6 +883,8 @@ const Out = (() => {
 // START
 // ══════════════════════════════════════════════════════
 window.addEventListener('load', () => {
+  attachItemSearch('inCode',  code => In.setCode(code));
+  attachItemSearch('outCode', code => Out.setCode(code));
   const name = store.get('apmStoresUser');
   el('inUser').value = name;
   el('outUser').value = name;
