@@ -499,31 +499,64 @@ const Scanner = (() => {
 // ══════════════════════════════════════════════════════
 // BAG LABELS → BARCODE PRINTER folder (gas-project renders the PDF)
 // ══════════════════════════════════════════════════════
-// All labels of one Stock In go out as a single PDF (gas-project caps a PDF at 50 labels).
-async function sendLabels(labels, statusEl) {
-  let sent = 0, error = '';
-  statusEl.textContent = '🖨 Making label PDF (' + labels.length + ' label' + (labels.length === 1 ? '' : 's') + ')…';
-  for (let i = 0; i < labels.length; i += 50) {
-    const chunk = labels.slice(i, i + 50);
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 300000);
-    try {
-      const r = await fetch(LABEL_API, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'generateBagLabels', bags: chunk }),
-        signal: ctrl.signal,
-      });
-      const d = await r.json();
-      if (d.ok) sent += chunk.length; else error = d.error || 'failed';
-    } catch (e) {
-      error = e.name === 'AbortError' ? 'timed out' : 'no connection';
-    } finally {
-      clearTimeout(timer);
-    }
+// All labels of one Stock In go out as ONE PDF, however many there are. Up to 25 fit in a single request; more are
+// built in parts of 25 on the server (start, add, finish) because Apps Script stops any one request after 6 minutes.
+const LABEL_PART = 25;
+
+async function labelApi(body) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 300000);
+  try {
+    const r = await fetch(LABEL_API, { method: 'POST', body: JSON.stringify(body), signal: ctrl.signal });
+    return await r.json();
+  } finally {
+    clearTimeout(timer);
   }
-  statusEl.textContent = sent === labels.length
-    ? '🖨 ' + sent + ' label' + (sent === 1 ? '' : 's') + ' sent to the printer as one PDF ✓'
-    : '⚠ Labels failed (' + error + '). Ask the office to reprint them from the Labels tab.';
+}
+
+async function makeLabelPdf(labels, onProgress) {
+  if (labels.length <= LABEL_PART) {
+    const d = await labelApi({ action: 'generateBagLabels', bags: labels });
+    if (!d.ok) throw new Error(d.error || 'failed');
+    return;
+  }
+  const first = labels[0].bagId, last = labels[labels.length - 1].bagId;
+  const job = await labelApi({ action: 'bagLabelsStart', firstBag: first });
+  if (!job.ok) throw new Error(job.error || 'could not start');
+  for (let i = 0; i < labels.length; i += LABEL_PART) {
+    onProgress(i, labels.length);
+    const part = { action: 'bagLabelsAdd', presId: job.presId, start: i, bags: labels.slice(i, i + LABEL_PART) };
+    let r;
+    try {
+      r = await labelApi(part);
+    } catch (e) {
+      if (e.name === 'AbortError') throw e;
+      await new Promise(done => setTimeout(done, 3000));
+      r = await labelApi(part);   // connection dropped: repeating a part is safe, the server discards a half-finished attempt
+    }
+    if (!r.ok) throw new Error(r.error || 'failed');
+  }
+  onProgress(labels.length, labels.length);
+  const f = await labelApi({ action: 'bagLabelsFinish', presId: job.presId, count: labels.length, firstBag: first, lastBag: last });
+  if (!f.ok) throw new Error(f.error || 'failed');
+}
+
+function labelError(e) {
+  if (e.name === 'AbortError')  return 'the server took too long';
+  if (e instanceof TypeError)   return 'no connection';
+  if (e instanceof SyntaxError) return 'unexpected reply from the label server';
+  return e.message;
+}
+
+async function sendLabels(labels, statusEl) {
+  const n = labels.length;
+  statusEl.textContent = '🖨 Making label PDF (' + n + ' label' + (n === 1 ? '' : 's') + ')…';
+  try {
+    await makeLabelPdf(labels, (done, total) => { statusEl.textContent = '🖨 Making label PDF… ' + done + ' of ' + total; });
+    statusEl.textContent = '🖨 ' + n + ' label' + (n === 1 ? '' : 's') + ' sent to the printer as one PDF ✓';
+  } catch (e) {
+    statusEl.textContent = '⚠ Labels failed (' + labelError(e) + '). Ask the office to reprint them from the Labels tab.';
+  }
 }
 
 // ══════════════════════════════════════════════════════
