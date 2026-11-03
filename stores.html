@@ -679,8 +679,8 @@ const In = (() => {
     if (d.item.status !== 'ACTIVE') return;
     item = d.item;
     const wt = item.mtype === 'WEIGHT';
-    el('inBagsToggleRow').style.display = wt ? '' : 'none';
-    el('inUseBags').checked = wt;
+    el('inBagsToggleRow').style.display = '';       // any item can come in bags
+    el('inUseBags').checked = wt;                   // weighed material: bags by default; counted items only when ticked
     el('inBagCount').value = 1;
     el('inBagRows').innerHTML = '';
     el('inQty').value = '';
@@ -689,7 +689,7 @@ const In = (() => {
     el('inForm').style.display = '';
   }
 
-  function useBags() { return !!item && item.mtype === 'WEIGHT' && el('inUseBags').checked; }
+  function useBags() { return !!item && el('inUseBags').checked; }
 
   function toggleBags() {
     const on = useBags();
@@ -712,11 +712,12 @@ const In = (() => {
     const n = Math.min(50, Math.max(1, parseInt(countEl.value, 10) || 1));
     const old = bagInputs().map(i => i.value);
     const uom = item ? item.uom : 'KG';
+    const what = item && item.mtype !== 'WEIGHT' ? 'Quantity' : 'Weight';
     let html = '';
     for (let i = 0; i < n; i++) {
       html += '<div class="bag-row"><span class="bag-no">Bag ' + (i + 1) + '</span>' +
-        '<input type="number" inputmode="decimal" step="any" min="0" placeholder="Weight" ' +
-        'aria-label="Bag ' + (i + 1) + ' weight" value="' + esc(old[i] || '') + '" oninput="In.total()">' +
+        '<input type="number" inputmode="decimal" step="any" min="0" placeholder="' + what + '" ' +
+        'aria-label="Bag ' + (i + 1) + ' ' + what.toLowerCase() + '" value="' + esc(old[i] || '') + '" oninput="In.total()">' +
         '<span class="unit">' + esc(uom) + '</span></div>';
     }
     el('inBagRows').innerHTML = html;
@@ -743,7 +744,7 @@ const In = (() => {
     let weights = [];
     if (bags) {
       const t = total();
-      if (t.w.some(x => !(x > 0))) { toast('Enter the weight of every bag.', 'err'); return; }
+      if (t.w.some(x => !(x > 0))) { toast('Enter the ' + (item.mtype === 'WEIGHT' ? 'weight' : 'quantity') + ' of every bag.', 'err'); return; }
       weights = t.w;
       data.qty = t.sum;
       data.bagCount = weights.length;
@@ -770,8 +771,9 @@ const In = (() => {
     ], printing ? 'inLabelStatus' : '');
     toast('Stock In saved ✓', 'ok');
     if (printing) {
+      const caption = item.mtype === 'WEIGHT' ? 'WEIGHT' : 'QTY';      // the label says QTY next to a bag of counted pieces
       sendLabels(d.bagIds.map((id, i) => ({
-        bagId: id, itemName: d.itemName, weight: weights[i], uom: d.uom,
+        bagId: id, itemName: d.itemName, weight: weights[i], uom: d.uom, caption,
         supplier: data.party, ref: data.ref, received: today(),
       })), el('inLabelStatus'));
     }
@@ -837,8 +839,8 @@ const Out = (() => {
 
     item = d.item;
     bags = d.bags || [];
-    if (item.mtype === 'WEIGHT' && bags.length) {
-      // Bagged material must be issued from a specific bag so bag weights stay correct.
+    if (bags.length) {
+      // Bagged stock (weighed, or counted pieces received in bags) must be issued from a specific bag so the bags stay correct.
       el('outBags').innerHTML = '<div class="pick-title">Choose the bag you are issuing</div>' +
         bags.map(b =>
           '<button class="bag-pick" data-id="' + esc(b.id) + '" onclick="Out.pick(this.dataset.id)">' +
@@ -873,7 +875,7 @@ const Out = (() => {
 
   async function save() {
     if (!item) { toast('Scan a bag or item label first.', 'err'); return; }
-    if (item.mtype === 'WEIGHT' && bags.length && !bag) { toast('Choose a bag first.', 'err'); return; }
+    if (bags.length && !bag) { toast('Choose a bag first.', 'err'); return; }
     const q = parseFloat(el('outQty').value);
     if (!(q > 0)) { toast('Enter the ' + (item.mtype === 'WEIGHT' ? 'weight' : 'quantity') + '.', 'err'); return; }
     if (bag && q > parseFloat(bag.current) + 1e-9) {
