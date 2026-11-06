@@ -1,0 +1,2403 @@
+<!-- Generated from gas-inventory/Index.html by tools/build-inventory-page.js. Do not edit here. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>APM Inventory</title>
+<meta name="robots" content="noindex">
+<script>
+// google.script.run stand-in: same chained calls, answered by the web app's doPost.
+var google = { script: {} };
+Object.defineProperty(google.script, 'run', { get: function() {
+  var ok = function() {}, fail = function() {};
+  var runner = {
+    withSuccessHandler: function(f) { ok = f; return runner; },
+    withFailureHandler: function(f) { fail = f; return runner; }
+  };
+  ["gsSetup","gsDashboard","gsGetItems","gsGetItem","gsAddItem","gsUpdateItem","gsStockIn","gsStockOut","gsGetBatch","gsGetBatches","gsGetLedger","gsGetCategories","gsAdjustStock","gsGetEntry","gsGetItemDetail","gsEditEntry","gsVoidEntry","gsMakeBagFromEntry"].forEach(function(name) {
+    runner[name] = function(arg) {
+      fetch("https://script.google.com/macros/s/AKfycbxDeKxI1rxckSq8kMr1FQCbnpHVJleQUcBsQ0bx3CcHhKZ3zujJH9YmU_A3-dkAYsGx/exec", { method: 'POST', body: JSON.stringify({ admin: name, arg: arg || {} }) })
+        .then(function(r) { return r.json(); })
+        .then(function(v) { ok(v); })
+        .catch(function() { fail(new Error('Could not reach the server. Check the internet and try again.')); });
+    };
+  });
+  return runner;
+}});
+</script>
+<style>
+:root {
+  --bg:#F0F2F8;--surface:#fff;--surface2:#F7F8FC;
+  --border:#DDE1EE;--border2:#C8CEDF;
+  --txt:#1A2035;--txt2:#5C6B8A;--txt3:#9BA8C0;
+  --primary:#1A56DB;--primary-hover:#1648C0;--primary-light:#EBF0FF;
+  --success:#0D9265;--success-light:#DCFCE7;
+  --warn:#D97706;--warn-light:#FEF3C7;
+  --danger:#DC2626;--danger-light:#FEE2E2;
+  --info:#0891B2;--info-light:#E0F2FE;
+  --radius:8px;--radius-lg:12px;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --sidebar-w:220px;
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111827;--surface:#1F2937;--surface2:#374151;
+  --border:#374151;--border2:#4B5563;
+  --txt:#F9FAFB;--txt2:#9CA3AF;--txt3:#6B7280;
+  --primary:#3B82F6;--primary-hover:#2563EB;--primary-light:#1E3A5F;
+  --success-light:#14532D;--warn-light:#451A03;--danger-light:#450A0A;--info-light:#0C4A6E;
+}}
+:root[data-theme="dark"]{
+  --bg:#111827;--surface:#1F2937;--surface2:#374151;
+  --border:#374151;--border2:#4B5563;
+  --txt:#F9FAFB;--txt2:#9CA3AF;--txt3:#6B7280;
+  --primary:#3B82F6;--primary-hover:#2563EB;--primary-light:#1E3A5F;
+  --success-light:#14532D;--warn-light:#451A03;--danger-light:#450A0A;--info-light:#0C4A6E;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--txt);font-size:14px;display:flex;height:100vh;overflow:hidden}
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width .2s}
+.sidebar.collapsed{width:56px;min-width:56px}
+.sidebar-top{display:flex;align-items:center;justify-content:space-between;padding:16px 12px;border-bottom:1px solid var(--border)}
+.logo{font-size:15px;font-weight:700;color:var(--primary);white-space:nowrap;overflow:hidden}
+.logo span{color:var(--txt2);font-weight:400}
+.sidebar.collapsed .logo{display:none}
+.sidebar-toggle{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:18px;padding:2px 4px;border-radius:4px;flex-shrink:0}
+.sidebar-toggle:hover{background:var(--surface2);color:var(--txt)}
+.sidebar-nav{flex:1;overflow-y:auto;padding:8px 0}
+.sidebar-item{display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;border:none;background:none;cursor:pointer;color:var(--txt2);text-align:left;border-radius:0;font-size:13.5px;transition:background .15s,color .15s;white-space:nowrap}
+.sidebar-item:hover{background:var(--primary-light);color:var(--primary)}
+.sidebar-item.active{background:var(--primary-light);color:var(--primary);font-weight:600}
+.si-icon{font-size:16px;flex-shrink:0;width:20px;text-align:center}
+.sidebar.collapsed .si-label{display:none}
+.sidebar-footer{padding:12px 14px;font-size:11px;color:var(--txt3);border-top:1px solid var(--border);white-space:nowrap;overflow:hidden}
+.sidebar.collapsed .sidebar-footer{padding:12px 0;text-align:center}
+.main-area{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.main-header{padding:14px 20px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.page-title{font-size:18px;font-weight:700;color:var(--txt)}
+main{flex:1;overflow-y:auto;padding:16px 20px 24px}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;box-shadow:var(--shadow)}
+.kpi-label{font-size:11.5px;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.kpi-val{font-size:28px;font-weight:700;color:var(--txt);font-variant-numeric:tabular-nums;line-height:1}
+.kpi-sub{font-size:11.5px;color:var(--txt3);margin-top:4px}
+.kpi-card.warn .kpi-val{color:var(--warn)}
+.kpi-card.danger .kpi-val{color:var(--danger)}
+.kpi-card.success .kpi-val{color:var(--success)}
+.kpi-card.info .kpi-val{color:var(--info)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow:hidden}
+.card-head{padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.card-title{font-size:13.5px;font-weight:600;color:var(--txt)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:10px 12px;text-align:left;font-size:11.5px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.empty{color:var(--txt3);text-align:center;padding:32px;font-style:italic}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-in{background:var(--success-light);color:var(--success)}
+.badge-out{background:var(--danger-light);color:var(--danger)}
+.badge-adj{background:var(--warn-light);color:var(--warn)}
+.badge-open{background:var(--info-light);color:var(--info)}
+.badge-active{background:var(--success-light);color:var(--success)}
+.badge-inactive{background:var(--border);color:var(--txt2)}
+.badge-qty{background:var(--primary-light);color:var(--primary)}
+.badge-wt{background:var(--warn-light);color:var(--warn)}
+.form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow);max-width:640px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.form-row.full{grid-template-columns:1fr}
+.form-group{display:flex;flex-direction:column;gap:4px}
+label{font-size:12px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em}
+input,select,textarea{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:8px 10px;color:var(--txt);font-size:13.5px;font-family:inherit;width:100%;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(26,86,219,.15)}
+input::placeholder,textarea::placeholder{color:var(--txt3)}
+textarea{resize:vertical;min-height:72px}
+.scan-row{display:flex;gap:8px}
+.scan-row input{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius);border:none;cursor:pointer;font-size:13.5px;font-weight:600;font-family:inherit;transition:background .15s,opacity .15s;white-space:nowrap}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--primary-hover)}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:hover:not(:disabled){background:#0a7a56}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover:not(:disabled){background:#b91c1c}
+.btn-ghost{background:var(--surface2);color:var(--txt2);border:1px solid var(--border2)}
+.btn-ghost:hover:not(:disabled){background:var(--border);color:var(--txt)}
+.btn-sm{padding:5px 11px;font-size:12.5px}
+.search-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.search-bar input{max-width:260px}
+.search-bar select{max-width:160px}
+.txn-result{border-radius:var(--radius-lg);padding:16px 18px;margin-top:16px;display:none}
+.txn-result.show{display:block}
+.txn-result.success{background:var(--success-light);border:1px solid var(--success);color:var(--success)}
+.txn-result.error{background:var(--danger-light);border:1px solid var(--danger);color:var(--danger)}
+.txn-result .txn-id{font-weight:700;font-size:15px}
+.txn-result .txn-detail{font-size:12.5px;margin-top:4px;opacity:.8}
+.item-lookup{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin:12px 0;display:none}
+.item-lookup.show{display:block}
+.item-lookup .il-name{font-size:15px;font-weight:700;color:var(--txt);margin-bottom:4px}
+.item-lookup .il-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--txt2)}
+.item-lookup .il-stock{font-size:20px;font-weight:700;color:var(--primary);margin-top:8px}
+.ac-list{display:none;margin:6px 0 2px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow);overflow:hidden;max-width:560px}
+.ac-list.show{display:block}
+.ac-item{display:flex;justify-content:space-between;align-items:baseline;gap:12px;width:100%;padding:9px 12px;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--txt);font:inherit;font-size:13.5px;text-align:left;cursor:pointer}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.active{background:var(--primary-light)}
+.ac-name{font-weight:600}
+.ac-meta{font-size:12px;color:var(--txt2);white-space:nowrap}
+.alert{border-radius:var(--radius);padding:10px 14px;display:flex;gap:10px;align-items:flex-start;margin-bottom:12px}
+.alert-warn{background:var(--warn-light);border:1px solid var(--warn);color:var(--warn)}
+.alert-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.alert-body{font-size:13px}
+.toast{position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--txt);color:var(--surface);padding:10px 18px;border-radius:var(--radius);font-size:13.5px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.25);pointer-events:none;opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s}
+.toast.show{opacity:1;transform:none}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:8888;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:var(--surface);border-radius:var(--radius-lg);padding:24px;width:90%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:22px;line-height:1;padding:2px}
+.modal-close:hover{color:var(--txt)}
+tr.voided{opacity:.55}
+.ee-meta{font-size:12.5px;color:var(--txt2);margin-bottom:14px;line-height:1.5}
+.ee-bag-w{width:110px;text-align:right}
+.ee-total{font-size:12.5px;color:var(--txt2);margin:8px 0 14px}
+.ee-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.ee-actions .spacer{flex:1}
+.ee-void{color:var(--danger)}
+/* Items tab: an item opens under its row to show its bags */
+tr.item-row{cursor:pointer}
+tr.item-row.open td{background:var(--surface2)}
+tr.item-detail td{padding:0;border-bottom:1px solid var(--border2)}
+tr.item-detail:hover td{background:transparent}
+.item-acts{white-space:nowrap}
+.item-acts .btn+.btn{margin-left:6px}
+.chev{display:inline-block;transition:transform .15s}
+.bags-btn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.ip{position:sticky;left:0;box-sizing:border-box;padding:14px 16px 16px;background:var(--surface2)}
+.ip-head{display:flex;gap:10px 14px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.ip-head .spacer{flex:1}
+.ip-sum{font-size:13px;color:var(--txt2)}
+.ip-sum strong{color:var(--txt)}
+.ip-find{width:150px;padding:5px 9px;font-size:12.5px}
+.ip-opt{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:500;color:var(--txt2);text-transform:none;letter-spacing:0;cursor:pointer;white-space:nowrap}
+.ip-opt input{width:auto}
+.ip-warn{font-size:12.5px;color:var(--warn);background:var(--warn-light);border:1px solid var(--warn);border-radius:var(--radius);padding:7px 10px;margin-bottom:10px}
+.ip-group{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+.ip-ghead{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border)}
+.ip-gmeta{flex:1;min-width:190px;font-size:12.5px;line-height:1.5}
+.ip-gmeta .dim{font-size:12px}
+.ip-gact,.ip-acts{display:flex;gap:6px}
+.ip-acts{justify-content:flex-end}
+.ip table th,.ip table td{padding:6px 12px}
+.ip tr.ip-empty td{color:var(--txt3)}
+.ip-del{color:var(--danger)}
+.ip-del:hover:not(:disabled){color:var(--danger)}
+.ip-etitle{font-size:12px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 6px}
+.ip-etitle .dim{text-transform:none;letter-spacing:0;font-weight:400;margin-left:6px}
+.ip-msg{font-size:13px;color:var(--txt2);padding:6px 0}
+.ip-err{color:var(--danger)}
+.ip-note{font-size:12px;color:var(--txt2);margin-top:8px}
+.link-btn{background:none;border:none;padding:0;color:var(--primary);font:inherit;cursor:pointer;text-decoration:underline}
+.bm-text{font-size:13.5px;line-height:1.5;margin-bottom:14px}
+.conv-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--txt2)}
+.conv-line input{width:110px}
+.conv-hint{font-size:12px;color:var(--txt2);margin-top:6px;line-height:1.45}
+@media(max-width:520px){
+  #editEntryModal .modal-box{padding:16px}
+  #editEntryModal .form-row{grid-template-columns:1fr}
+  #editEntryModal th,#editEntryModal td{padding:8px 6px}
+  .ee-bag-w{width:84px}
+  #bagModal .modal-box{padding:16px}
+  #bagModal .form-row{grid-template-columns:1fr}
+  .ip{padding:12px}
+  .ip table th,.ip table td{padding:6px 7px}
+  .ip-lbl{display:none}
+}
+#qrVideo{width:100%;border-radius:var(--radius);background:#000;aspect-ratio:1}
+#qrCanvas{display:none}
+.label-preview{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;gap:16px;align-items:center;margin-top:12px}
+.label-preview img{width:90px;height:90px;border:1px solid var(--border)}
+.label-info{font-size:12.5px}
+.label-info strong{font-size:14px;display:block;margin-bottom:4px}
+.section-gap{margin-top:20px}
+.tag{font-size:11px;background:var(--primary-light);color:var(--primary);padding:1px 6px;border-radius:4px;font-weight:600}
+code{font-family:monospace;font-size:12px;background:var(--surface2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)}
+.dim{color:var(--txt2)}
+.mono{font-family:monospace;font-variant-numeric:tabular-nums}
+.right{text-align:right}
+</style>
+</head>
+<body>
+
+<aside id="sidebar" class="sidebar">
+  <div class="sidebar-top">
+    <div class="logo">APM <span>Stores</span></div>
+    <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+  </div>
+  <nav class="sidebar-nav" id="sidebarNav">
+    <button class="sidebar-item active" data-tab="dashboard"><span class="si-icon">📊</span><span class="si-label">Dashboard</span></button>
+    <button class="sidebar-item" data-tab="items"><span class="si-icon">📦</span><span class="si-label">Items</span></button>
+    <button class="sidebar-item" data-tab="stockin"><span class="si-icon">⬇️</span><span class="si-label">Stock In</span></button>
+    <button class="sidebar-item" data-tab="stockout"><span class="si-icon">⬆️</span><span class="si-label">Stock Out</span></button>
+    <button class="sidebar-item" data-tab="ledger"><span class="si-icon">📋</span><span class="si-label">Ledger</span></button>
+    <button class="sidebar-item" data-tab="labels"><span class="si-icon">🔖</span><span class="si-label">Labels</span></button>
+    <button class="sidebar-item" data-tab="adjust"><span class="si-icon">⚙️</span><span class="si-label">Adjustment</span></button>
+  </nav>
+  <div class="sidebar-footer">APM Industries</div>
+</aside>
+
+<div class="main-area">
+  <div class="main-header">
+    <div id="pageTitle" class="page-title">Dashboard</div>
+  </div>
+  <main>
+
+    <!-- DASHBOARD -->
+    <div id="tabDashboard">
+      <div id="dashSetupAlert" class="alert alert-warn" style="display:none">
+        <span class="alert-icon">⚠️</span>
+        <div class="alert-body">
+          <strong>Database not initialized.</strong> Click
+          <button class="btn btn-sm btn-primary" id="setupBtn" style="margin-left:8px">Initialize Database</button>
+          to create the Google Sheet and start.
+          <div style="font-size:12px;margin-top:4px">Already have stock entered? Do not press it: it makes a new, empty database. Ask for the old one to be reconnected.</div>
+        </div>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi-card info"><div class="kpi-label">Total Items</div><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-sub">Active items</div></div>
+        <div class="kpi-card"><div class="kpi-label">Qty Items</div><div class="kpi-val" id="kpiQty">—</div><div class="kpi-sub">Count-based</div></div>
+        <div class="kpi-card"><div class="kpi-label">Weight Items</div><div class="kpi-val" id="kpiWt">—</div><div class="kpi-sub">Weight-based</div></div>
+        <div class="kpi-card warn"><div class="kpi-label">Low Stock</div><div class="kpi-val" id="kpiBelowMin">—</div><div class="kpi-sub">Below minimum</div></div>
+        <div class="kpi-card danger"><div class="kpi-label">Out of Stock</div><div class="kpi-val" id="kpiOut">—</div><div class="kpi-sub">Zero balance</div></div>
+        <div class="kpi-card success"><div class="kpi-label">Today In</div><div class="kpi-val" id="kpiTodayIn">—</div><div class="kpi-sub">Receipts today</div></div>
+        <div class="kpi-card"><div class="kpi-label">Today Out</div><div class="kpi-val" id="kpiTodayOut">—</div><div class="kpi-sub">Issues today</div></div>
+      </div>
+      <div id="lowStockBox" style="display:none;margin-bottom:14px">
+        <div class="alert alert-warn">
+          <span class="alert-icon">⚠️</span>
+          <div class="alert-body"><strong>Low Stock Alert</strong><div id="lowStockList" style="margin-top:6px"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Recent Transactions</div>
+          <button class="btn btn-ghost btn-sm" id="refreshBtn">↻ Refresh</button>
+        </div>
+        <div class="tbl-wrap"><table><thead><tr><th>Time</th><th>Type</th><th>Item</th><th>In</th><th>Out</th><th>UOM</th></tr></thead>
+        <tbody id="recentTbl"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ITEMS LIST -->
+    <div id="tabItems" style="display:none">
+      <div class="search-bar">
+        <input id="itemSearch" type="search" placeholder="Search items…">
+        <select id="itemCatFilter"><option value="">All Categories</option></select>
+        <select id="itemMtypeFilter"><option value="">All Types</option><option value="QUANTITY">Quantity</option><option value="WEIGHT">Weight</option></select>
+        <button class="btn btn-primary btn-sm" id="addItemNavBtn">+ Add Item</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Code</th><th>Item Name</th><th>Category</th><th>Type</th><th class="right">Current Stock</th><th>UOM</th><th class="right" title="About how many pieces the weight in stock is, from the pieces reference set on the item. For your reference only.">≈ Pcs</th><th>Location</th><th>Status</th><th></th></tr></thead>
+          <tbody id="itemsTbl"><tr><td colspan="10" class="empty">—</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ADD ITEM -->
+    <div id="tabAddItem" style="display:none">
+      <div class="form-card">
+        <div class="form-row">
+          <div class="form-group"><label>Item Name *</label><input id="ai_name" placeholder="e.g. MS Rod 12mm"></div>
+          <div class="form-group"><label>Category</label><input id="ai_cat" list="catList" placeholder="e.g. Raw Material"><datalist id="catList"></datalist></div>
+        </div>
+        <div class="form-row full"><div class="form-group"><label>Description</label><textarea id="ai_desc" rows="2" placeholder="Optional notes"></textarea></div></div>
+        <div class="form-row">
+          <div class="form-group"><label>Measurement Type *</label>
+            <select id="ai_mtype">
+              <option value="QUANTITY">Quantity (count-based)</option>
+              <option value="WEIGHT">Weight (kg-based)</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Unit of Measure *</label>
+            <select id="ai_uom">
+              <option value="PCS">PCS — Pieces</option>
+              <option value="KG">KG — Kilograms</option>
+              <option value="MTR">MTR — Meters</option>
+              <option value="LTR">LTR — Litres</option>
+              <option value="NOS">NOS — Numbers</option>
+              <option value="SET">SET — Set</option>
+              <option value="BOX">BOX — Box</option>
+              <option value="PKT">PKT — Packet</option>
+              <option value="TON">TON — Tonnes</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Opening Stock</label><input id="ai_opening" type="number" min="0" step="any" placeholder="0"></div>
+          <div class="form-group"><label>Min Stock Level</label><input id="ai_minStock" type="number" min="0" step="any" placeholder="0 (alert threshold)"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Storage Location</label><input id="ai_location" placeholder="e.g. Rack A3"></div>
+          <div class="form-group"><label>Supplier Name</label><input id="ai_supplier" placeholder="Default supplier"></div>
+        </div>
+        <div class="form-row full" id="ai_conv_row" style="display:none">
+          <div class="form-group">
+            <label>Pieces, for reference only <span style="font-weight:400;text-transform:none">(optional)</span></label>
+            <div class="conv-line">
+              <input id="ai_convW" type="number" min="0" step="any" placeholder="e.g. 1" aria-label="Weight"> <span id="ai_convUnit">kg</span>
+              <span>=</span>
+              <input id="ai_convP" type="number" min="0" step="any" placeholder="e.g. 85" aria-label="Number of pieces"> <span>pcs</span>
+            </div>
+            <div class="conv-hint">Type a weight and how many pieces come in that weight. The Items list then shows about how many pieces are in stock. It is only for your reference: stock is still kept in weight.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <button class="btn btn-primary" id="saveItemBtn">Save Item</button>
+          <button class="btn btn-ghost" id="cancelAddItemBtn">Cancel</button>
+        </div>
+        <div id="addItemResult" class="txn-result"></div>
+      </div>
+    </div>
+
+    <!-- EDIT ITEM -->
+    <div id="tabEditItem" style="display:none">
+      <div class="form-card">
+        <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center">
+          <code id="ei_code"></code>
+          <span id="ei_badge"></span>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Item Name</label><input id="ei_name"></div>
+          <div class="form-group"><label>Category</label><input id="ei_cat" list="catList2"><datalist id="catList2"></datalist></div>
+        </div>
+        <div class="form-row full"><div class="form-group"><label>Description</label><textarea id="ei_desc" rows="2"></textarea></div></div>
+        <div class="form-row">
+          <div class="form-group"><label>Min Stock Level</label><input id="ei_minStock" type="number" min="0" step="any"></div>
+          <div class="form-group"><label>Storage Location</label><input id="ei_location"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Supplier</label><input id="ei_supplier"></div>
+          <div class="form-group"><label>Status</label>
+            <select id="ei_status"><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select>
+          </div>
+        </div>
+        <div class="form-row full" id="ei_conv_row" style="display:none">
+          <div class="form-group">
+            <label>Pieces, for reference only <span style="font-weight:400;text-transform:none">(optional)</span></label>
+            <div class="conv-line">
+              <input id="ei_convW" type="number" min="0" step="any" placeholder="e.g. 1" aria-label="Weight"> <span id="ei_convUnit">kg</span>
+              <span>=</span>
+              <input id="ei_convP" type="number" min="0" step="any" placeholder="e.g. 85" aria-label="Number of pieces"> <span>pcs</span>
+            </div>
+            <div class="conv-hint">Type a weight and how many pieces come in that weight. The Items list then shows about how many pieces are in stock. Leave both empty for none. It is only for your reference: stock is still kept in weight.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px">
+          <button class="btn btn-primary" id="saveEditItemBtn">Save Changes</button>
+          <button class="btn btn-ghost" id="cancelEditItemBtn">Cancel</button>
+        </div>
+        <div id="editItemResult" class="txn-result"></div>
+      </div>
+    </div>
+
+    <!-- STOCK IN -->
+    <div id="tabStockin" style="display:none">
+      <div class="form-card">
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Item Code or Name / Scan QR</label>
+          <div class="scan-row">
+            <input id="si_code" placeholder="Type code or item name, or scan QR">
+            <button class="btn btn-ghost btn-sm" id="scanSIBtn">📷 Scan</button>
+            <button class="btn btn-ghost btn-sm" id="lookupSIBtn">Look Up</button>
+          </div>
+        </div>
+        <div id="si_lookup" class="item-lookup">
+          <div class="il-name" id="si_name"></div>
+          <div class="il-meta"><span id="si_cat_tag"></span><span id="si_mtype_tag"></span><span class="dim">Location: <span id="si_loc"></span></span></div>
+          <div class="il-stock">Current Stock: <span id="si_curstock"></span> <span id="si_uom"></span></div>
+        </div>
+        <!-- Bag tracking (any item: weighed material, or counted items that arrive in bags / boxes) -->
+        <div id="si_bag_section" style="display:none;margin:6px 0 4px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:var(--txt2)">
+            <input type="checkbox" id="si_use_bags" style="width:16px;height:16px"> Track individual bags
+          </label>
+          <div id="si_bag_fields" style="display:none;margin-top:10px">
+            <div class="form-group" style="max-width:160px;margin-bottom:10px"><label>No. of Bags *</label><input id="si_bag_count" type="number" min="1" max="50" step="1" placeholder="e.g. 5"></div>
+            <div class="form-group" id="si_each_box" style="display:none;max-width:260px;margin-bottom:10px"><label>Same in every bag <span style="font-weight:400;text-transform:none">(optional)</span></label><input id="si_bag_each" type="number" min="0.001" step="any" placeholder="e.g. 10"></div>
+            <div id="si_bag_rows" style="margin-bottom:6px"></div>
+            <div style="font-size:12.5px;color:var(--txt2);margin-bottom:4px">Total: <strong id="si_bag_total">—</strong> <span id="si_bag_unit">kg</span> &nbsp;·&nbsp; each bag gets a unique ID and its own label</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label id="si_qty_label">Quantity *</label><input id="si_qty" type="number" min="0.001" step="any" placeholder="0"></div>
+          <div class="form-group"><label>Supplier / Party</label><input id="si_party" placeholder="Supplier name"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Reference / Challan No.</label><input id="si_ref" placeholder="DC/Challan/PO number"></div>
+          <div class="form-group"><label>Recorded By</label><input id="si_user" placeholder="Your name"></div>
+        </div>
+        <div class="form-row full"><div class="form-group"><label>Remarks</label><input id="si_remarks" placeholder="Optional"></div></div>
+        <button class="btn btn-success" id="confirmSIBtn">✓ Confirm Stock In</button>
+        <div id="si_result" class="txn-result"></div>
+        <button id="si_print_bags_btn" class="btn btn-ghost" style="display:none;margin-top:8px">🖨 Print Bag Labels</button>
+      </div>
+    </div>
+
+    <!-- STOCK OUT -->
+    <div id="tabStockout" style="display:none">
+      <div class="form-card">
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Item Code, Name or Bag ID / Scan QR</label>
+          <div class="scan-row">
+            <input id="so_code" placeholder="Type code, bag ID or item name, or scan QR">
+            <button class="btn btn-ghost btn-sm" id="scanSOBtn">📷 Scan</button>
+            <button class="btn btn-ghost btn-sm" id="lookupSOBtn">Look Up</button>
+          </div>
+        </div>
+        <div id="so_lookup" class="item-lookup">
+          <div class="il-name" id="so_name"></div>
+          <div class="il-meta"><span id="so_cat_tag"></span><span id="so_mtype_tag"></span><span class="dim">Location: <span id="so_loc"></span></span></div>
+          <div class="il-stock">Available Stock: <span id="so_curstock"></span> <span id="so_uom"></span></div>
+        </div>
+        <!-- Bag selection (shown for any item that has bags) -->
+        <div id="so_bags_box" style="display:none;margin:8px 0 4px">
+          <div style="font-size:12px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Available Bags</div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Bag No.</th><th class="right">Received</th><th class="right">Remaining</th><th>Supplier</th><th></th></tr></thead>
+            <tbody id="so_bags_tbl"></tbody>
+          </table></div>
+          <div id="so_bag_sel" style="display:none;font-size:12.5px;color:var(--primary);margin-top:6px;font-weight:600"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label id="so_qty_label">Quantity *</label><input id="so_qty" type="number" min="0.001" step="any" placeholder="0"></div>
+          <div class="form-group"><label>Issued To / Party</label><input id="so_party" placeholder="Recipient name"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Reference / Job No.</label><input id="so_ref" placeholder="Job/Work order number"></div>
+          <div class="form-group"><label>Recorded By</label><input id="so_user" placeholder="Your name"></div>
+        </div>
+        <div class="form-row full"><div class="form-group"><label>Remarks</label><input id="so_remarks" placeholder="Optional"></div></div>
+        <button class="btn btn-danger" id="confirmSOBtn">✓ Confirm Stock Out</button>
+        <div id="so_result" class="txn-result"></div>
+      </div>
+    </div>
+
+    <!-- LEDGER -->
+    <div id="tabLedger" style="display:none">
+      <div class="search-bar">
+        <input id="ledItemFilter" placeholder="Item code or name…" style="max-width:220px">
+        <select id="ledTypeFilter" style="max-width:160px">
+          <option value="">All Types</option>
+          <option value="STOCK_IN">Stock In</option>
+          <option value="STOCK_OUT">Stock Out</option>
+          <option value="OPENING">Opening</option>
+          <option value="ADJUSTMENT">Adjustment</option>
+        </select>
+        <button class="btn btn-primary btn-sm" id="loadLedgerBtn">Load</button>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Transaction Ledger</div>
+          <span id="ledCount" class="dim" style="font-size:12px"></span>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Txn ID</th><th>Time</th><th>Type</th><th>Item</th><th>Batch</th><th class="right">In</th><th class="right">Out</th><th class="right">Balance</th><th>UOM</th><th>Party</th><th>Ref</th><th>By</th><th></th></tr></thead>
+            <tbody id="ledgerTbl"><tr><td colspan="13" class="empty">Click Load to view transactions.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- LABELS -->
+    <div id="tabLabels" style="display:none">
+      <div class="form-card">
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Item Code or Name</label>
+          <div class="scan-row">
+            <input id="lbl_code" placeholder="Type code or item name">
+            <button class="btn btn-ghost btn-sm" id="lookupLabelBtn">Look Up</button>
+          </div>
+        </div>
+        <div id="lbl_lookup" style="display:none">
+          <div class="label-preview">
+            <img id="lbl_qr_img" src="" alt="QR Code">
+            <div class="label-info">
+              <strong id="lbl_item_name"></strong>
+              <div><code id="lbl_item_code_disp"></code> &nbsp; <span id="lbl_item_cat"></span></div>
+              <div class="dim" style="margin-top:6px;font-size:12px">Stock: <span id="lbl_item_stock"></span> <span id="lbl_item_uom"></span></div>
+              <div style="margin-top:10px">
+                <button class="btn btn-primary btn-sm" id="printItemLabelBtn">🖨 Print Item Label</button>
+              </div>
+            </div>
+          </div>
+          <div id="batchesBox" class="section-gap" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div class="card-title">Bags</div>
+              <button class="btn btn-ghost btn-sm" id="printAllBagsBtn">🖨 Print All Bag Labels</button>
+            </div>
+            <div class="tbl-wrap"><table>
+              <thead><tr><th>Bag No.</th><th>Date</th><th class="right">Received</th><th class="right">Remaining</th><th>UOM</th><th>Supplier</th><th>Status</th><th></th></tr></thead>
+              <tbody id="batchTbl"></tbody>
+            </table></div>
+          </div>
+          <div id="lbl_nobags" class="dim" style="display:none;margin-top:14px;font-size:12.5px;line-height:1.5"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADJUSTMENT -->
+    <div id="tabAdjust" style="display:none">
+      <div class="form-card">
+        <p style="font-size:13px;color:var(--txt2);margin-bottom:16px">Correct stock discrepancies found during physical counts. All adjustments are logged.</p>
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Item Code or Name</label>
+          <div class="scan-row">
+            <input id="adj_code" placeholder="Type code or item name, or scan QR">
+            <button class="btn btn-ghost btn-sm" id="scanAdjBtn">📷 Scan</button>
+            <button class="btn btn-ghost btn-sm" id="lookupAdjBtn">Look Up</button>
+          </div>
+        </div>
+        <div id="adj_lookup" class="item-lookup">
+          <div class="il-name" id="adj_name"></div>
+          <div class="il-stock">Book Stock: <span id="adj_curstock"></span> <span id="adj_uom"></span></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Actual / Correct Quantity *</label><input id="adj_qty" type="number" min="0" step="any" placeholder="Physical count"></div>
+          <div class="form-group"><label>Recorded By</label><input id="adj_user" placeholder="Your name"></div>
+        </div>
+        <div class="form-row full"><div class="form-group"><label>Reason *</label><input id="adj_reason" placeholder="e.g. Physical count on 23-Oct, found discrepancy"></div></div>
+        <button class="btn btn-primary" id="submitAdjBtn">✓ Apply Adjustment</button>
+        <div id="adj_result" class="txn-result"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- EDIT / VOID A SAVED ENTRY -->
+<div id="editEntryModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:640px;max-height:90vh;overflow:auto">
+    <div class="modal-head">
+      <div class="modal-title" id="ee_title">Edit entry</div>
+      <button class="modal-close" id="ee_close" aria-label="Close">×</button>
+    </div>
+    <div id="ee_body"></div>
+  </div>
+</div>
+
+<!-- EDIT / DELETE ONE BAG OR A WHOLE ENTRY (opened from an item on the Items tab) -->
+<div id="bagModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:460px;max-height:90vh;overflow:auto">
+    <div class="modal-head">
+      <div class="modal-title" id="bm_title">Bag</div>
+      <button class="modal-close" id="bm_close" aria-label="Close">×</button>
+    </div>
+    <div id="bm_body"></div>
+  </div>
+</div>
+
+<!-- QR SCANNER MODAL -->
+<div id="scannerModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title">📷 Scan QR Code</div>
+      <button class="modal-close" id="scannerCloseBtn">×</button>
+    </div>
+    <video id="qrVideo" autoplay playsinline></video>
+    <canvas id="qrCanvas" style="display:none"></canvas>
+    <p style="font-size:12px;color:var(--txt3);text-align:center;margin-top:10px">Point camera at QR code to scan automatically</p>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+      <button class="btn btn-ghost btn-sm" id="scannerCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
+<script>
+// ── API (google.script.run bridge) ───────────────────────────────
+// fetch() is cross-origin in GAS iframes; google.script.run is the
+// correct mechanism for client→server calls in HtmlService apps.
+var _GS_FN = {
+  setup:'gsSetup',       dashboard:'gsDashboard',
+  getItems:'getItems',   getItem:'gsGetItem',
+  addItem:'addItem',     updateItem:'updateItem',
+  stockIn:'stockIn',     stockOut:'stockOut',
+  getBatch:'gsGetBatch', getBatches:'gsGetBatches',
+  getLedger:'getLedger', getCategories:'gsGetCategories',
+  adjustStock:'adjustStock'
+};
+
+// Reading is safe to repeat, so a read that gets no answer in time is asked once more before giving up. A save is never repeated.
+var READ_ONLY_API = { dashboard:1, getItems:1, getItem:1, getBatch:1, getBatches:1, getLedger:1, getCategories:1, getEntry:1, getItemDetail:1 };
+
+function api(params) {
+  return apiOnce(params).then(function(r) {
+    return r && r.timedOut && READ_ONLY_API[params.api] ? apiOnce(params) : r;
+  });
+}
+
+function apiOnce(params) {
+  return new Promise(function(resolve) {
+    var a = params.api;
+    var arg = {};
+    Object.keys(params).forEach(function(k) { if (k !== 'api') arg[k] = params[k]; });
+
+    var timer = setTimeout(function() {
+      resolve({error: 'The server did not answer in time. Your data is safe. Try again, or reload the page.', timedOut: true});
+    }, 30000);
+
+    var gsr = google.script.run
+      .withSuccessHandler(function(r) { clearTimeout(timer); resolve(r); })
+      .withFailureHandler(function(e) { clearTimeout(timer); resolve({error: e.message || String(e)}); });
+
+    // Explicit names — bracket notation is unreliable in GAS sandboxed iframes
+    switch(a) {
+      case 'setup':         gsr.gsSetup(arg);        break;
+      case 'dashboard':     gsr.gsDashboard(arg);    break;
+      case 'getItems':      gsr.gsGetItems(arg);      break;
+      case 'getItem':       gsr.gsGetItem(arg);       break;
+      case 'addItem':       gsr.gsAddItem(arg);       break;
+      case 'updateItem':    gsr.gsUpdateItem(arg);    break;
+      case 'stockIn':       gsr.gsStockIn(arg);       break;
+      case 'stockOut':      gsr.gsStockOut(arg);      break;
+      case 'getBatch':      gsr.gsGetBatch(arg);      break;
+      case 'getBatches':    gsr.gsGetBatches(arg);    break;
+      case 'getLedger':     gsr.gsGetLedger(arg);     break;
+      case 'getCategories': gsr.gsGetCategories(arg); break;
+      case 'adjustStock':   gsr.gsAdjustStock(arg);   break;
+      case 'getEntry':      gsr.gsGetEntry(arg);      break;
+      case 'getItemDetail': gsr.gsGetItemDetail(arg); break;
+      case 'editEntry':     gsr.gsEditEntry(arg);     break;
+      case 'voidEntry':     gsr.gsVoidEntry(arg);     break;
+      case 'makeBagFromEntry': gsr.gsMakeBagFromEntry(arg); break;
+      default: clearTimeout(timer); resolve({error: 'Unknown API: ' + a});
+    }
+  });
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────
+const TAB_LABELS = {
+  dashboard:'Dashboard', items:'Items', addItem:'Add Item',
+  editItem:'Edit Item', stockin:'Stock In', stockout:'Stock Out',
+  ledger:'Ledger', labels:'Labels', adjust:'Adjustment'
+};
+let _currentTab = 'dashboard';
+
+function setTab(tab) {
+  document.querySelectorAll('[id^="tab"]').forEach(function(el) {
+    el.style.display = 'none';
+  });
+  var el = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+  if (el) el.style.display = 'block';
+  document.querySelectorAll('.sidebar-item').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  document.getElementById('pageTitle').textContent = TAB_LABELS[tab] || tab;
+  _currentTab = tab;
+  if (tab === 'dashboard') loadDashboard();
+  if (tab === 'items')     loadItems();
+  if (tab === 'addItem')   prepAddItem();
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────
+function toast(msg, type, dur) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = (type === 'danger') ? 'var(--danger)' : '';
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); t.style.background = ''; }, dur || (type === 'danger' ? 4000 : 2500));
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────
+function _renderDashboard(data) {
+  document.getElementById('dashSetupAlert').style.display = 'none';
+  document.getElementById('kpiTotal').textContent    = data.total;
+  document.getElementById('kpiQty').textContent      = data.qtyItems;
+  document.getElementById('kpiWt').textContent       = data.wtItems;
+  document.getElementById('kpiBelowMin').textContent = data.belowMin;
+  document.getElementById('kpiOut').textContent      = data.outOfStock;
+  document.getElementById('kpiTodayIn').textContent  = data.todayIn;
+  document.getElementById('kpiTodayOut').textContent = data.todayOut;
+
+  if (data.lowStock && data.lowStock.length) {
+    document.getElementById('lowStockBox').style.display = '';
+    document.getElementById('lowStockList').innerHTML =
+      data.lowStock.map(function(x) {
+        return '<span style="margin-right:12px"><strong>' + x.name + '</strong>: ' + x.cur + ' ' + x.uom + ' (min ' + x.min + ')</span>';
+      }).join('');
+  } else {
+    document.getElementById('lowStockBox').style.display = 'none';
+  }
+
+  var tbody = document.getElementById('recentTbl');
+  if (!data.recent || !data.recent.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No transactions yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.recent.map(function(r) {
+    return '<tr>' +
+      '<td class="dim" style="font-size:12px">' + r.time + '</td>' +
+      '<td>' + typeBadge(r.type) + '</td>' +
+      '<td><strong>' + esc(r.itemName) + '</strong> <code style="font-size:11px">' + r.itemCode + '</code></td>' +
+      '<td class="mono">' + (r.in > 0 ? '+' + r.in : '—') + '</td>' +
+      '<td class="mono">' + (r.out > 0 ? '-' + r.out : '—') + '</td>' +
+      '<td class="dim">' + r.uom + '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+// The "Initialize Database" banner is only for a database that really is not set up. Any other failure (a slow server,
+// no connection) just says so and offers Try again: pressing Initialize on a working system must never be tempting.
+function dashFail(msg) {
+  var notSetUp = /not initialized/i.test(msg);
+  document.getElementById('dashSetupAlert').style.display = notSetUp ? '' : 'none';
+  document.getElementById('recentTbl').innerHTML = '<tr><td colspan="6" class="empty" style="color:' + (notSetUp ? 'var(--txt3)' : 'var(--danger)') + '">' + esc(msg) +
+    (notSetUp ? '' : '<br><br><button class="btn btn-primary btn-sm" id="retryDashBtn">Try again</button>') + '</td></tr>';
+  var retry = document.getElementById('retryDashBtn');
+  if (retry) retry.addEventListener('click', loadDashboard);
+}
+
+async function loadDashboard() {
+  document.getElementById('recentTbl').innerHTML = '<tr><td colspan="6" class="empty">Loading…</td></tr>';
+  try {
+    var data = await api({api:'dashboard'});
+    if (data.error) { dashFail(data.error); return; }
+    _renderDashboard(data);
+  } catch(e) {
+    dashFail('Error: ' + e.message);
+  }
+}
+
+async function runSetup() {
+  document.getElementById('setupBtn').textContent = 'Initializing…';
+  document.getElementById('setupBtn').disabled = true;
+  try {
+    var d = await api({api:'setup'});
+    if (d.ok) {
+      toast('Database ready! ✓');
+      loadDashboard();
+    } else {
+      toast('Setup error: ' + (d.error || 'Unknown error'), 'danger');
+      document.getElementById('setupBtn').textContent = 'Initialize Database';
+      document.getElementById('setupBtn').disabled = false;
+    }
+  } catch(e) {
+    toast('Setup failed: ' + e.message, 'danger');
+    document.getElementById('setupBtn').textContent = 'Initialize Database';
+    document.getElementById('setupBtn').disabled = false;
+  }
+}
+
+function typeBadge(t) {
+  var map = {STOCK_IN:'badge-in',STOCK_OUT:'badge-out',ADJUSTMENT:'badge-adj',OPENING:'badge-open'};
+  var labels = {STOCK_IN:'IN',STOCK_OUT:'OUT',ADJUSTMENT:'ADJ',OPENING:'OPEN'};
+  return '<span class="badge ' + (map[t] || '') + '">' + (labels[t] || t) + '</span>';
+}
+
+// ── ITEMS ─────────────────────────────────────────────────────────
+var _allItems = [];
+
+async function loadItems() {
+  var tbody = document.getElementById('itemsTbl');
+  tbody.innerHTML = '<tr><td colspan="10" class="empty">Loading…</td></tr>';
+  var d = await api({api:'getItems', status:'ALL'});
+  if (d.error) {
+    var notSetUp = /not initialized/i.test(d.error);       // only then is Initialize the right button; otherwise just try again
+    tbody.innerHTML = '<tr><td colspan="10" class="empty" style="color:var(--danger)">' + esc(d.error) + '<br><br>' +
+      (notSetUp ? '<button class="btn btn-primary btn-sm" id="inlineSetupBtn">Initialize Database</button>'
+                : '<button class="btn btn-primary btn-sm" id="retryItemsBtn">Try again</button>') + '</td></tr>';
+    var inlineBtn = document.getElementById('inlineSetupBtn');
+    if (inlineBtn) inlineBtn.addEventListener('click', runSetup);
+    var retryBtn = document.getElementById('retryItemsBtn');
+    if (retryBtn) retryBtn.addEventListener('click', loadItems);
+    return;
+  }
+  _allItems = d.items || [];
+  Object.keys(_itemOpen).forEach(function(c) { _itemOpen[c].d = null; _itemOpen[c].loading = false; });   // opened items fetch their bags again
+  renderItems(_allItems);
+  loadCatOptions();
+}
+
+// About how many pieces the stock of a weighed item is, from the item's own pieces reference ("1 kg = 85 pcs"). Reference only.
+function pcsCell(it) {
+  var w = parseFloat(it.convWeight), n = parseFloat(it.convPcs);
+  if (it.mtype !== 'WEIGHT' || !(w > 0) || !(n > 0)) return '<td></td>';
+  var pcs = Math.round((parseFloat(it.current) || 0) * n / w);
+  return '<td class="right mono" title="' + esc(eeNum(w) + ' ' + String(it.uom).toLowerCase() + ' = ' + eeNum(n) + ' pcs') + '">≈ ' + pcs.toLocaleString('en-IN') + '</td>';
+}
+
+function renderItems(items) {
+  var tbody = document.getElementById('itemsTbl');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty">No items found. <button class="btn btn-primary btn-sm" id="firstItemBtn">Add First Item</button></td></tr>';
+    var btn = document.getElementById('firstItemBtn');
+    if (btn) btn.addEventListener('click', function() { setTab('addItem'); });
+    return;
+  }
+  tbody.innerHTML = items.map(function(it) {
+    var low  = it.minStock > 0 && it.current < it.minStock;
+    var zero = it.current <= 0;
+    var stockColor = zero ? 'color:var(--danger)' : low ? 'color:var(--warn)' : '';
+    var open = !!_itemOpen[it.code];
+    return '<tr class="item-row' + (open ? ' open' : '') + '" data-code="' + esc(it.code) + '">' +
+      '<td><code>' + it.code.replace(/^[^0-9]*/, '') + '</code></td>' +
+      '<td><strong>' + esc(it.name) + '</strong>' + (it.desc ? '<div style="font-size:11.5px;color:var(--txt2)">' + esc(it.desc) + '</div>' : '') + '</td>' +
+      '<td class="dim">' + esc(it.category) + '</td>' +
+      '<td><span class="badge ' + (it.mtype === 'WEIGHT' ? 'badge-wt' : 'badge-qty') + '">' + it.mtype + '</span></td>' +
+      '<td class="right mono" style="' + stockColor + '"><strong>' + it.current + '</strong></td>' +
+      '<td class="dim">' + it.uom + '</td>' +
+      pcsCell(it) +
+      '<td class="dim">' + esc(it.location) + '</td>' +
+      '<td><span class="badge ' + (it.status === 'ACTIVE' ? 'badge-active' : 'badge-inactive') + '">' + it.status + '</span></td>' +
+      '<td class="item-acts"><button class="btn btn-ghost btn-sm bags-btn" data-code="' + esc(it.code) + '" aria-expanded="' + open + '">' +
+        '<span class="chev">▾</span> Bags</button>' +
+        '<button class="btn btn-ghost btn-sm edit-item-btn" data-code="' + esc(it.code) + '">Edit</button></td>' +
+      '</tr>' + (open ? ipDetailRowHtml(it.code) : '');
+  }).join('');
+
+  // clicks (open an item, its bag actions, Edit) are handled once on the tbody, see "Items tab" in the wiring below
+  sizeItemPanels();
+  Object.keys(_itemOpen).forEach(function(c) { if (!_itemOpen[c].d && ipEl(c)) loadItemPanel(c); });
+}
+
+function filterItems() {
+  var s = document.getElementById('itemSearch').value.toLowerCase();
+  var c = document.getElementById('itemCatFilter').value;
+  var m = document.getElementById('itemMtypeFilter').value;
+  var filtered = _allItems.filter(function(it) {
+    var codeNum = it.code.replace(/^[^0-9]*/, '');
+    return (!s || (codeNum + ' ' + it.name + ' ' + it.category + ' ' + it.location).toLowerCase().indexOf(s) >= 0) &&
+           (!c || it.category === c) &&
+           (!m || it.mtype === m);
+  });
+  renderItems(filtered);
+}
+
+async function loadCatOptions() {
+  var d = await api({api:'getCategories'});
+  var cats = d.categories || [];
+  ['itemCatFilter', 'catList', 'catList2'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === 'SELECT') {
+      el.innerHTML = '<option value="">All Categories</option>' +
+        cats.map(function(c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('');
+    } else {
+      el.innerHTML = cats.map(function(c) { return '<option value="' + esc(c) + '">'; }).join('');
+    }
+  });
+}
+
+// ── ADD ITEM ──────────────────────────────────────────────────────
+function prepAddItem() {
+  ['ai_name','ai_cat','ai_desc','ai_opening','ai_minStock','ai_location','ai_supplier','ai_convW','ai_convP'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('addItemResult').className = 'txn-result';
+  syncAddConv();
+  loadCatOptions();
+}
+
+// The pieces reference only makes sense for weighed items; the unit beside it follows the unit of measure.
+function syncAddConv() {
+  document.getElementById('ai_conv_row').style.display = document.getElementById('ai_mtype').value === 'WEIGHT' ? '' : 'none';
+  document.getElementById('ai_convUnit').textContent = document.getElementById('ai_uom').value.toLowerCase();
+}
+
+function toggleUOM() {
+  var mtype = document.getElementById('ai_mtype').value;
+  document.getElementById('ai_uom').value = mtype === 'WEIGHT' ? 'KG' : 'PCS';
+  syncAddConv();
+}
+
+async function submitAddItem() {
+  var name = document.getElementById('ai_name').value.trim();
+  if (!name) { showResult('addItemResult', false, 'Item name is required.'); return; }
+  var wt = document.getElementById('ai_mtype').value === 'WEIGHT';
+  var d = await api({
+    api:'addItem', name:name,
+    desc:     document.getElementById('ai_desc').value.trim(),
+    category: document.getElementById('ai_cat').value.trim(),
+    mtype:    document.getElementById('ai_mtype').value,
+    uom:      document.getElementById('ai_uom').value,
+    opening:  document.getElementById('ai_opening').value || '0',
+    minStock: document.getElementById('ai_minStock').value || '0',
+    location: document.getElementById('ai_location').value.trim(),
+    supplier: document.getElementById('ai_supplier').value.trim(),
+    convWeight: wt ? document.getElementById('ai_convW').value : '',
+    convPcs:    wt ? document.getElementById('ai_convP').value : '',
+  });
+  if (d.ok) { showResult('addItemResult', true, 'Item created: ' + d.itemCode); toast('Item added ✓'); prepAddItem(); }
+  else       { showResult('addItemResult', false, d.error || 'Failed.'); }
+}
+
+// ── EDIT ITEM ─────────────────────────────────────────────────────
+async function editItem(code) {
+  var d = await api({api:'getItem', code:code});
+  if (d.error) { toast(d.error); return; }
+  var it = d.item;
+  document.getElementById('ei_code').textContent = it.code;
+  document.getElementById('ei_badge').innerHTML =
+    '<span class="badge ' + (it.mtype === 'WEIGHT' ? 'badge-wt' : 'badge-qty') + '">' + it.mtype + ' · ' + it.uom + '</span>';
+  document.getElementById('ei_name').value     = it.name;
+  document.getElementById('ei_cat').value      = it.category || '';
+  document.getElementById('ei_desc').value     = it.desc || '';
+  document.getElementById('ei_minStock').value = it.minStock || 0;
+  document.getElementById('ei_location').value = it.location || '';
+  document.getElementById('ei_supplier').value = it.supplier || '';
+  document.getElementById('ei_status').value   = it.status || 'ACTIVE';
+  document.getElementById('ei_conv_row').style.display = it.mtype === 'WEIGHT' ? '' : 'none';     // only weighed items have a pieces reference
+  document.getElementById('ei_convUnit').textContent   = String(it.uom || 'kg').toLowerCase();
+  document.getElementById('ei_convW').value = it.convWeight > 0 ? it.convWeight : '';
+  document.getElementById('ei_convP').value = it.convPcs > 0 ? it.convPcs : '';
+  document.getElementById('editItemResult').className = 'txn-result';
+  loadCatOptions();
+  setTab('editItem');
+}
+
+async function submitEditItem() {
+  var code = document.getElementById('ei_code').textContent;
+  var p = {
+    api:'updateItem', code:code,
+    name:     document.getElementById('ei_name').value.trim(),
+    desc:     document.getElementById('ei_desc').value.trim(),
+    category: document.getElementById('ei_cat').value.trim(),
+    minStock: document.getElementById('ei_minStock').value,
+    location: document.getElementById('ei_location').value.trim(),
+    supplier: document.getElementById('ei_supplier').value.trim(),
+    status:   document.getElementById('ei_status').value,
+  };
+  if (document.getElementById('ei_conv_row').style.display !== 'none') {       // weighed items: both boxes empty clears the reference
+    p.convWeight = document.getElementById('ei_convW').value;
+    p.convPcs    = document.getElementById('ei_convP').value;
+  }
+  var d = await api(p);
+  if (d.ok) { showResult('editItemResult', true, 'Changes saved.'); toast('Item updated ✓'); }
+  else       { showResult('editItemResult', false, d.error || 'Update failed.'); }
+}
+
+// ── ITEM SEARCH (type part of a name or code, pick from the list) ──
+var _itemsP = null, _itemsAt = 0;
+function itemList() {
+  if (!_itemsP || Date.now() - _itemsAt > 60000) {
+    _itemsAt = Date.now();
+    _itemsP = api({api:'getItems', status:'ACTIVE'}).then(function(d) {
+      if (!d.items) _itemsAt = 0;
+      return d.items || [];
+    });
+  }
+  return _itemsP;
+}
+
+function codeKey(c) { return String(c).toUpperCase().replace(/^[^0-9]*/, '').replace(/^0+/, '') || '0'; }
+
+// The item whose code the text is ("4", "0001", "ITM-0001"), or null.
+async function findByCode(text) {
+  var t = String(text || '').trim().toUpperCase();
+  if (!t) return null;
+  var codeLike = /^[A-Z]*-?\d+$/.test(t);
+  var items = await itemList();
+  return items.find(function(it) {
+    var c = String(it.code).toUpperCase();
+    return c === t || (codeLike && codeKey(c) === codeKey(t));
+  }) || null;
+}
+
+function matchItems(items, q) {
+  q = String(q || '').trim().toLowerCase();
+  if (!q) return [];
+  var words = q.split(/\s+/);
+  return items.map(function(it) {
+    var name = String(it.name).toLowerCase(), code = String(it.code).toLowerCase();
+    var hay  = name + ' ' + code + ' ' + String(it.category || '').toLowerCase();
+    if (!words.every(function(w) { return hay.indexOf(w) >= 0; })) return null;
+    var s = (code === q || code.replace(/^[^0-9]*/, '') === q) ? 0 : name.indexOf(q) === 0 ? 1 : name.indexOf(q) > 0 ? 2 : 3;
+    return { it: it, s: s };
+  }).filter(Boolean).sort(function(a, b) {
+    return a.s - b.s || String(a.it.name).localeCompare(String(b.it.name));
+  }).slice(0, 8).map(function(x) { return x.it; });
+}
+
+// Typed text → item code: an exact code, or the only item whose name matches.
+async function resolveItemCode(text) {
+  var t = String(text || '').trim();
+  if (!t || /^BCH-/i.test(t)) return { code: t };
+  var exact = await findByCode(t);
+  if (exact) return { code: String(exact.code) };
+  var m = matchItems(await itemList(), t);
+  if (m.length === 1) return { code: String(m[0].code) };
+  if (m.length > 1)   return { error: 'Several items match "' + t + '". Choose one from the list.' };
+  return { code: t };
+}
+
+function attachItemSearch(inputId, onPick) {
+  var input = document.getElementById(inputId);
+  var row   = input.parentElement;
+  var list  = document.createElement('div');
+  var shown = [], active = -1, timer = null;
+  list.className = 'ac-list';
+  row.insertAdjacentElement('afterend', list);
+  input.setAttribute('autocomplete', 'off');
+
+  function hide() { shown = []; active = -1; list.innerHTML = ''; list.classList.remove('show'); }
+  function render() {
+    list.innerHTML = shown.map(function(it, i) {
+      return '<button type="button" class="ac-item' + (i === active ? ' active' : '') + '" data-i="' + i + '">' +
+        '<span class="ac-name">' + esc(it.name) + '</span>' +
+        '<span class="ac-meta">' + esc(String(it.code).replace(/^[^0-9]*/, '') || it.code) +
+        (it.category ? ' · ' + esc(it.category) : '') + '</span></button>';
+    }).join('');
+    list.classList.toggle('show', shown.length > 0);
+  }
+  function pick(i) {
+    var it = shown[i];
+    if (!it) return;
+    input.value = it.code;
+    hide();
+    onPick(it);
+  }
+
+  input.addEventListener('focus', itemList);
+  input.addEventListener('input', function() {
+    clearTimeout(timer);
+    var q = input.value;
+    if (!q.trim() || /^BCH-/i.test(q.trim())) { hide(); return; }
+    timer = setTimeout(function() {
+      itemList().then(function(items) {
+        if (input.value !== q) return;
+        shown = matchItems(items, q); active = -1; render();
+      });
+    }, 200);
+  });
+  // Registered before each box's own Enter handler, so Enter on an open list picks an item.
+  input.addEventListener('keydown', function(e) {
+    if (!shown.length) return;
+    if (e.key === 'ArrowDown')    { active = Math.min(shown.length - 1, active + 1); render(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { active = Math.max(0, active - 1); render(); e.preventDefault(); }
+    else if (e.key === 'Enter')   { pick(active >= 0 ? active : 0); e.preventDefault(); e.stopImmediatePropagation(); }
+    else if (e.key === 'Escape')  { hide(); }
+  });
+  list.addEventListener('mousedown', function(e) { e.preventDefault(); });
+  list.addEventListener('click', function(e) {
+    var b = e.target.closest('.ac-item');
+    if (b) pick(+b.dataset.i);
+  });
+  document.addEventListener('click', function(e) {
+    if (!list.contains(e.target) && !row.contains(e.target)) hide();
+  });
+}
+
+// ── STOCK IN ──────────────────────────────────────────────────────
+var _siTimer = null;
+var _pendingBagPrint = null;
+function onSICodeInput() {
+  clearTimeout(_siTimer);
+  _siTimer = setTimeout(function() {
+    findByCode(document.getElementById('si_code').value).then(function(it) { if (it) lookupSI(); });
+  }, 600);
+}
+
+async function lookupSI() {
+  var r = await resolveItemCode(document.getElementById('si_code').value);
+  if (r.error) { toast(r.error); return; }
+  var code = r.code.toUpperCase();
+  if (!code) return;
+  document.getElementById('si_code').value = code;
+  var d   = await api({api:'getItem', code:code});
+  var box = document.getElementById('si_lookup');
+  if (d.error) { box.classList.remove('show'); document.getElementById('si_bag_section').style.display='none'; toast(d.error); return; }
+  document.getElementById('si_print_bags_btn').style.display = 'none'; _pendingBagPrint = null;
+  var it = d.item;
+  document.getElementById('si_name').textContent = it.name;
+  document.getElementById('si_cat_tag').innerHTML   = it.category ? '<span class="tag">' + esc(it.category) + '</span>' : '';
+  document.getElementById('si_mtype_tag').innerHTML = '<span class="badge ' + (it.mtype === 'WEIGHT' ? 'badge-wt' : 'badge-qty') + '" style="font-size:11px">' + it.mtype + '</span>';
+  document.getElementById('si_loc').textContent       = it.location || '—';
+  document.getElementById('si_curstock').textContent  = it.current;
+  document.getElementById('si_uom').textContent       = it.uom;
+  var isWt = it.mtype === 'WEIGHT';
+  var prevCode = _siItem ? _siItem.code : null;
+  _siItem = it;
+  document.getElementById('si_qty_label').textContent = isWt ? 'Total Weight (kg) *' : 'Quantity (' + siUnit() + ') *';
+  // Any item can come in bags. Counted items can also be given the same quantity in every bag.
+  document.getElementById('si_bag_section').style.display = '';
+  document.getElementById('si_each_box').style.display = isWt ? 'none' : '';
+  document.getElementById('si_bag_unit').textContent = siUnit();
+  if (prevCode !== it.code) resetSIBags();      // another item: start the bag fields afresh (looking up the same item again keeps them)
+  box.classList.add('show');
+}
+
+// What the bag rows count: kg for weighed material, the item's own unit (pcs …) for counted items.
+var _siItem = null;
+function siUnit() { return !_siItem || _siItem.mtype === 'WEIGHT' ? 'kg' : String(_siItem.uom || 'pcs').toLowerCase(); }
+
+function resetSIBags() {
+  document.getElementById('si_use_bags').checked = false;
+  document.getElementById('si_bag_fields').style.display = 'none';
+  document.getElementById('si_qty').disabled = false;
+  ['si_bag_count', 'si_bag_each'].forEach(function(id) { document.getElementById(id).value = ''; });
+  document.getElementById('si_bag_rows').innerHTML = '';
+  document.getElementById('si_bag_total').textContent = '—';
+}
+
+async function submitStockIn() {
+  var r = await resolveItemCode(document.getElementById('si_code').value);
+  if (r.error) { showResult('si_result', false, r.error); return; }
+  var code    = r.code.toUpperCase();
+  var useBags = document.getElementById('si_use_bags').checked;
+  var party   = document.getElementById('si_party').value.trim();
+  var ref     = document.getElementById('si_ref').value.trim();
+  var payload = { api:'stockIn', code:code, party:party, ref:ref,
+    user:    document.getElementById('si_user').value.trim(),
+    remarks: document.getElementById('si_remarks').value.trim() };
+
+  var bagWeightsArr = [];
+  if (useBags) {
+    var bc = parseInt(document.getElementById('si_bag_count').value) || 0;
+    var wInputs = document.getElementById('si_bag_rows').querySelectorAll('.bag-wt-input');
+    bagWeightsArr = Array.from(wInputs).map(function(inp) { return parseFloat(inp.value) || 0; });
+    var allFilled = bc > 0 && bagWeightsArr.length === bc && bagWeightsArr.every(function(w) { return w > 0; });
+    if (!code || !allFilled) { showResult('si_result', false, 'Enter item code, number of bags, and the ' + (_siItem && _siItem.mtype !== 'WEIGHT' ? 'quantity' : 'weight') + ' of each bag.'); return; }
+    var totalWt = bagWeightsArr.reduce(function(a, b) { return a + b; }, 0);
+    payload.qty        = String(totalWt);
+    payload.bagCount   = String(bc);
+    payload.bagWeights = bagWeightsArr.join(',');
+  } else {
+    var qty = document.getElementById('si_qty').value;
+    if (!code || !qty) { showResult('si_result', false, 'Item code and quantity are required.'); return; }
+    payload.qty = qty;
+  }
+
+  var d = await api(payload);
+  if (d.ok) {
+    var bagInfo = d.bagCount > 1 ? ' | ' + d.bagCount + ' bags created' : (d.bagIds && d.bagIds[0] ? ' | Bag: ' + d.bagIds[0].replace(/^[^0-9]*/, '') : '');
+    showResult('si_result', true, 'Stock In recorded. Txn: ' + d.txnId + bagInfo + '\nNew balance: ' + d.closing + ' ' + d.uom);
+    toast('Stock In saved ✓');
+    ['si_qty','si_party','si_ref','si_remarks','si_bag_count','si_bag_each'].forEach(function(id) {
+      var el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('si_bag_rows').innerHTML = '';
+    document.getElementById('si_bag_total').textContent = '—';
+    document.getElementById('si_curstock').textContent = d.closing;
+    if (d.bagIds && d.bagIds.length) {
+      _pendingBagPrint = { ids: d.bagIds, weights: useBags ? bagWeightsArr : [parseFloat(payload.qty)],
+                           name: d.itemName, uom: d.uom, party: party, ref: ref, mtype: _siItem ? _siItem.mtype : 'WEIGHT' };
+      var btn = document.getElementById('si_print_bags_btn');
+      var n = d.bagIds.length;
+      btn.style.display = '';
+      if (useBags) {
+        btn.textContent = '🖨 Reprint ' + n + ' Bag Label' + (n === 1 ? '' : 's');
+        sendBagLabels(pendingBagLabels(), btn);
+      } else {
+        btn.textContent = '🖨 Print Bag Label';
+      }
+    }
+  } else {
+    showResult('si_result', false, d.error || 'Failed.');
+  }
+}
+
+// ── STOCK OUT ─────────────────────────────────────────────────────
+var _soTimer = null;
+function onSOCodeInput() {
+  clearTimeout(_soTimer);
+  _soTimer = setTimeout(function() {
+    var v = document.getElementById('so_code').value.trim();
+    if (/^BCH-\d{5}$/i.test(v)) { lookupSO(); return; }
+    findByCode(v).then(function(it) { if (it) lookupSO(); });
+  }, 600);
+}
+
+async function lookupSO() {
+  var r = await resolveItemCode(document.getElementById('so_code').value);
+  if (r.error) { toast(r.error); return; }
+  var code = r.code.toUpperCase();
+  if (!code) return;
+  document.getElementById('so_code').value = code;
+  var box = document.getElementById('so_lookup');
+  if (code.startsWith('BCH-')) {
+    var d = await api({api:'getBatch', id:code});
+    if (d.error) { box.classList.remove('show'); toast(d.error); return; }
+    var b = d.batch;
+    var di = await api({api:'getItem', code:b.itemCode});            // weighed or counted? decides the badge and the unit
+    var bt = di.item ? di.item.mtype : 'WEIGHT';
+    document.getElementById('so_name').textContent       = b.itemName + ' (Batch: ' + b.id + ')';
+    document.getElementById('so_cat_tag').innerHTML      = '';
+    document.getElementById('so_mtype_tag').innerHTML    = '<span class="badge ' + (bt === 'WEIGHT' ? 'badge-wt' : 'badge-qty') + '" style="font-size:11px">' + esc(bt) + '</span>';
+    document.getElementById('so_loc').textContent        = b.location || '—';
+    document.getElementById('so_curstock').textContent   = b.current;
+    document.getElementById('so_uom').textContent        = b.uom;
+    document.getElementById('so_qty_label').textContent  = bt === 'WEIGHT' ? 'Weight (kg) *' : 'Quantity (' + String(b.uom || 'pcs').toLowerCase() + ') *';
+    box.classList.add('show');
+    return;
+  }
+  var d2 = await api({api:'getItem', code:code});
+  if (d2.error) { box.classList.remove('show'); document.getElementById('so_bags_box').style.display='none'; toast(d2.error); return; }
+  var it = d2.item;
+  document.getElementById('so_name').textContent       = it.name;
+  document.getElementById('so_cat_tag').innerHTML      = it.category ? '<span class="tag">' + esc(it.category) + '</span>' : '';
+  document.getElementById('so_mtype_tag').innerHTML    = '<span class="badge ' + (it.mtype === 'WEIGHT' ? 'badge-wt' : 'badge-qty') + '" style="font-size:11px">' + it.mtype + '</span>';
+  document.getElementById('so_loc').textContent        = it.location || '—';
+  document.getElementById('so_curstock').textContent   = it.current;
+  document.getElementById('so_uom').textContent        = it.uom;
+  var unit = it.mtype === 'WEIGHT' ? 'kg' : String(it.uom || 'pcs').toLowerCase();
+  document.getElementById('so_qty_label').textContent  = it.mtype === 'WEIGHT' ? 'Weight (kg) *' : 'Quantity (' + unit + ') *';
+  document.getElementById('so_bag_sel').style.display  = 'none';
+  box.classList.add('show');
+  // Any item can have bags (weighed material, or counted items received with bag tracking): fetch and show them
+  {
+    var bd = await api({api:'getBatches', code:it.code});
+    var bags = (bd.batches || []).filter(function(b) { return b.status === 'ACTIVE' && parseFloat(b.current) > 0; });
+    var bagsBox = document.getElementById('so_bags_box');
+    bagsBox.style.display = bags.length ? '' : 'none';
+    if (bags.length) {
+      document.getElementById('so_bags_tbl').innerHTML = bags.map(function(b) {
+        var dispId = b.id.replace(/^[^0-9]*/, '');
+        return '<tr>' +
+          '<td><code>' + dispId + '</code></td>' +
+          '<td class="right mono">' + b.received + '</td>' +
+          '<td class="right mono"><strong>' + b.current + '</strong></td>' +
+          '<td class="dim">' + esc(b.supplier) + '</td>' +
+          '<td><button class="btn btn-ghost btn-sm" data-bagid="' + b.id + '" data-bagwt="' + b.current + '" data-bagdisp="' + dispId + '">Select</button></td>' +
+          '</tr>';
+      }).join('');
+      document.getElementById('so_bags_tbl').querySelectorAll('button').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          document.getElementById('so_code').value = btn.dataset.bagid;
+          document.getElementById('so_qty').value  = btn.dataset.bagwt;
+          var sel = document.getElementById('so_bag_sel');
+          sel.textContent = 'Bag ' + btn.dataset.bagdisp + ' selected (' + btn.dataset.bagwt + ' ' + unit + ')';
+          sel.style.display = '';
+          lookupSO();
+        });
+      });
+    }
+  }
+}
+
+async function submitStockOut() {
+  var r = await resolveItemCode(document.getElementById('so_code').value);
+  if (r.error) { showResult('so_result', false, r.error); return; }
+  var code = r.code.toUpperCase();
+  var qty  = document.getElementById('so_qty').value;
+  if (!code || !qty) { showResult('so_result', false, 'Item code and quantity are required.'); return; }
+  var d = await api({
+    api:'stockOut', code:code, qty:qty,
+    party:   document.getElementById('so_party').value.trim(),
+    ref:     document.getElementById('so_ref').value.trim(),
+    user:    document.getElementById('so_user').value.trim(),
+    remarks: document.getElementById('so_remarks').value.trim(),
+  });
+  if (d.ok) {
+    var msg = 'Stock Out recorded. Txn: ' + d.txnId + '\nIssued: ' + d.issued + ' ' + d.uom + ' | New balance: ' + d.closing + ' ' + d.uom;
+    showResult('so_result', true, msg);
+    toast('Stock Out saved ✓');
+    ['so_qty','so_party','so_ref','so_remarks'].forEach(function(id) { document.getElementById(id).value = ''; });
+    document.getElementById('so_curstock').textContent = d.closing;
+  } else {
+    showResult('so_result', false, d.error || 'Failed.');
+  }
+}
+
+// ── LEDGER ────────────────────────────────────────────────────────
+async function loadLedger() {
+  var r = await resolveItemCode(document.getElementById('ledItemFilter').value);
+  if (r.error) { toast(r.error); return; }
+  var itemCode = r.code.toUpperCase();
+  if (itemCode) document.getElementById('ledItemFilter').value = itemCode;
+  var type     = document.getElementById('ledTypeFilter').value;
+  var params   = {api:'getLedger', limit:'200'};
+  if (itemCode) params.itemCode = itemCode;
+  if (type)     params.type = type;
+  document.getElementById('ledgerTbl').innerHTML = '<tr><td colspan="13" class="empty">Loading…</td></tr>';
+  var d = await api(params);
+  var tbody = document.getElementById('ledgerTbl');
+  var txns  = d.txns || [];
+  document.getElementById('ledCount').textContent = txns.length ? txns.length + ' transactions' : '';
+  if (!txns.length) {
+    tbody.innerHTML = '<tr><td colspan="13" class="empty">' + esc(d.error || 'No transactions found.') + '</td></tr>';
+    return;
+  }
+  tbody.innerHTML = txns.map(function(r) {
+    var voided  = r.status === 'VOID';
+    var canEdit = !voided && (r.type === 'STOCK_IN' || r.type === 'STOCK_OUT');
+    return '<tr' + (voided ? ' class="voided"' : '') + '>' +
+      '<td><code style="font-size:11px">' + r.id + '</code>' +
+        (voided ? '<br><span class="badge badge-inactive" title="' + esc(r.note) + '">VOID</span>'
+                : (r.note ? ' <span title="' + esc(r.note) + '" style="cursor:help">✎</span>' : '')) + '</td>' +
+      '<td class="dim" style="font-size:11.5px;white-space:nowrap">' + r.time + '</td>' +
+      '<td>' + typeBadge(r.type) + '</td>' +
+      '<td><strong>' + esc(r.itemName) + '</strong><br><code style="font-size:10px">' + r.itemCode + '</code>' +
+        (r.remarks ? '<div class="dim" style="font-size:11px;max-width:240px;white-space:normal">' + esc(r.remarks) + '</div>' : '') + '</td>' +
+      '<td class="dim" style="font-size:11.5px">' + (r.batchId || '—') + '</td>' +
+      '<td class="right mono" style="color:var(--success)">' + (r.in > 0 ? '+' + r.in : '—') + '</td>' +
+      '<td class="right mono" style="color:var(--danger)">' + (r.out > 0 ? '-' + r.out : '—') + '</td>' +
+      '<td class="right mono"><strong>' + r.closing + '</strong></td>' +
+      '<td class="dim">' + r.uom + '</td>' +
+      '<td class="dim">' + esc(r.party) + '</td>' +
+      '<td class="dim">' + esc(r.ref) + '</td>' +
+      '<td class="dim">' + esc(r.user) + '</td>' +
+      '<td>' + (canEdit ? '<button class="btn btn-ghost btn-sm edit-entry-btn" data-txn="' + esc(r.id) + '">✎ Edit</button>' : '') + '</td>' +
+      '</tr>';
+  }).join('');
+  tbody.querySelectorAll('.edit-entry-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { openEditEntry(btn.dataset.txn); });
+  });
+}
+
+// ── LABELS ────────────────────────────────────────────────────────
+var _lblItem = null;
+var _lblBatches = [];
+
+async function lookupLabel() {
+  var r = await resolveItemCode(document.getElementById('lbl_code').value);
+  if (r.error) { toast(r.error); return; }
+  if (!r.code) return;
+  var d    = await api({api:'getItem', code:r.code.toUpperCase()});
+  var item = d.item || null;
+  if (!item) { toast('Item not found.'); return; }
+  document.getElementById('lbl_code').value = item.code;
+  _lblItem = item;
+
+  var dispCode = item.code.replace(/^[^0-9]*/, '');
+  var qrUrl = 'https://quickchart.io/qr?text=' + encodeURIComponent(dispCode) + '&size=200&format=png&margin=1';
+  document.getElementById('lbl_qr_img').src      = qrUrl;
+  document.getElementById('lbl_item_name').textContent = item.name;
+  document.getElementById('lbl_item_code_disp').textContent = dispCode;
+  document.getElementById('lbl_item_cat').textContent  = item.category || '';
+  document.getElementById('lbl_item_stock').textContent = item.current;
+  document.getElementById('lbl_item_uom').textContent   = item.uom;
+  document.getElementById('lbl_lookup').style.display = 'block';
+
+  // Any item can have bags (weighed material, or counted items received with bag tracking)
+  {
+    var bd = await api({api:'getBatches', code:item.code});
+    var batches = (bd.batches || []).filter(function(b) { return b.status === 'ACTIVE'; });
+    _lblBatches = batches;
+    document.getElementById('batchesBox').style.display = batches.length ? 'block' : 'none';
+    var hint = document.getElementById('lbl_nobags');
+    hint.style.display = batches.length ? 'none' : '';
+    hint.textContent = 'This item has no bags in stock, so there are no bag labels to print. To get a label for each bag, tick “Track individual bags” on the Stock In page and enter how many bags came and what is in each.';
+    document.getElementById('printAllBagsBtn').textContent = '🖨 Print All ' + batches.length + ' Bag Labels';
+    if (batches.length) {
+      var batchTbl = document.getElementById('batchTbl');
+      batchTbl.innerHTML = batches.map(function(b) {
+        var dispId = b.id.replace(/^[^0-9]*/, '');
+        return '<tr>' +
+          '<td><code>' + dispId + '</code></td>' +
+          '<td class="dim">' + b.date + '</td>' +
+          '<td class="right mono">' + b.received + '</td>' +
+          '<td class="right mono"><strong>' + b.current + '</strong></td>' +
+          '<td class="dim">' + b.uom + '</td>' +
+          '<td class="dim">' + esc(b.supplier) + '</td>' +
+          '<td><span class="badge badge-active">' + b.status + '</span></td>' +
+          '<td><button class="btn btn-ghost btn-sm print-batch-btn" data-bagid="' + esc(b.id) + '">🖨 Bag Label</button></td>' +
+          '</tr>';
+      }).join('');
+      batchTbl.querySelectorAll('.print-batch-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var bag = _lblBatches.find(function(b) { return b.id === btn.dataset.bagid; });
+          if (bag) sendBagLabels([batchToLabel(bag, item.name, item.mtype)], btn);
+        });
+      });
+    }
+  }
+}
+
+function printLabel() {
+  if (_lblItem) sendItemLabel(_lblItem, document.getElementById('printItemLabelBtn'));
+}
+
+// Item and bag labels are rendered by gas-project (which holds the Drive/Slides grant this script lacks)
+// and saved to the BARCODE PRINTER Drive folder, same pipeline as the cutting labels.
+var LABEL_API_URL = 'https://script.google.com/a/macros/apmindustries.in/s/AKfycbzwczRq8RgUAoR6TPP-1yy77JE-fJYbC3vcNq7vW2gapr8o-YOxU0wT30lHz-raNL8K/exec';
+
+// The label says WEIGHT next to a weighed bag and QTY next to a bag of counted pieces (mtype is the item's type).
+function labelCaption(mtype) { return mtype && mtype !== 'WEIGHT' ? 'QTY' : 'WEIGHT'; }
+
+function batchToLabel(b, itemName, mtype) {
+  return { bagId: b.id, itemName: itemName, weight: b.current, uom: b.uom, caption: labelCaption(mtype),
+           supplier: b.supplier, ref: b.ref, received: String(b.date).split(' ')[0] };
+}
+
+function pendingBagLabels() {
+  var p = _pendingBagPrint, now = new Date();
+  var received = String(now.getDate()).padStart(2,'0') + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + now.getFullYear();
+  return p.ids.map(function(id, i) {
+    return { bagId: id, itemName: p.name, weight: p.weights[i], uom: p.uom, caption: labelCaption(p.mtype),
+             supplier: p.party, ref: p.ref, received: received };
+  });
+}
+
+// All labels go out as ONE PDF, however many there are. Up to 25 fit in a single request; more are built in
+// parts of 25 on the server (start, add, finish) because Apps Script stops any one request after 6 minutes.
+var LABEL_PART = 25;
+
+async function labelApi(body) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(function() { ctrl.abort(); }, 300000);
+  try {
+    const res = await fetch(LABEL_API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body), redirect: 'follow', signal: ctrl.signal,
+    });
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function makeLabelPdf(labels, onProgress) {
+  if (labels.length <= LABEL_PART) {
+    const d = await labelApi({ action: 'generateBagLabels', bags: labels });
+    if (!d.ok) throw new Error(d.error || 'failed');
+    return;
+  }
+  const first = labels[0].bagId, last = labels[labels.length - 1].bagId;
+  const job = await labelApi({ action: 'bagLabelsStart', firstBag: first });
+  if (!job.ok) throw new Error(job.error || 'could not start');
+  for (let i = 0; i < labels.length; i += LABEL_PART) {
+    onProgress(i, labels.length);
+    const part = { action: 'bagLabelsAdd', presId: job.presId, start: i, bags: labels.slice(i, i + LABEL_PART) };
+    let r;
+    try {
+      r = await labelApi(part);
+    } catch (e) {
+      if (e.name === 'AbortError') throw e;
+      await new Promise(function(done) { setTimeout(done, 3000); });
+      r = await labelApi(part);   // connection dropped: repeating a part is safe, the server discards a half-finished attempt
+    }
+    if (!r.ok) throw new Error(r.error || 'failed');
+  }
+  onProgress(labels.length, labels.length);
+  const f = await labelApi({ action: 'bagLabelsFinish', presId: job.presId, count: labels.length, firstBag: first, lastBag: last });
+  if (!f.ok) throw new Error(f.error || 'failed');
+}
+
+function labelError(e) {
+  if (e.name === 'AbortError') return 'the server took too long';
+  if (e instanceof TypeError)  return 'no connection';
+  if (e instanceof SyntaxError) return 'unexpected reply from the label server';
+  return e.message;
+}
+
+// opts (optional): { ok: text for the success toast, fail: start of the failure toast }. Resolves true when the PDF was made.
+async function sendBagLabels(labels, btn, opts) {
+  opts = opts || {};
+  var idleHtml = btn.innerHTML;
+  var n = labels.length, sent = false;
+  btn.disabled = true;
+  btn.textContent = '⏳ Making PDF of ' + n + ' label' + (n === 1 ? '' : 's') + '…';
+  try {
+    await makeLabelPdf(labels, function(done, total) { btn.textContent = '⏳ Making PDF… ' + done + ' of ' + total + ' labels'; });
+    toast(opts.ok || (n + ' label' + (n === 1 ? '' : 's') + ' sent to BARCODE PRINTER as one PDF ✓'), '', opts.ok ? 5000 : 0);
+    sent = true;
+  } catch (e) {
+    toast((opts.fail || 'Labels failed') + ': ' + labelError(e), 'danger', opts.fail ? 8000 : 0);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = idleHtml;
+  }
+  return sent;
+}
+
+async function sendItemLabel(item, btn) {
+  var idleText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Sending…';
+  try {
+    var d = await labelApi({ action: 'generateItemLabel', code: item.code, name: item.name, category: item.category || '' });
+    if (!d.ok) throw new Error(d.error || 'failed');
+    toast('Item label sent to BARCODE PRINTER ✓');
+  } catch (e) {
+    toast('Label failed: ' + labelError(e), 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = idleText;
+  }
+}
+
+// ── ADJUSTMENT ────────────────────────────────────────────────────
+async function lookupAdj() {
+  var r = await resolveItemCode(document.getElementById('adj_code').value);
+  if (r.error) { toast(r.error); return; }
+  var code = r.code.toUpperCase();
+  if (!code) return;
+  document.getElementById('adj_code').value = code;
+  var d   = await api({api:'getItem', code:code});
+  var box = document.getElementById('adj_lookup');
+  if (d.error) { box.classList.remove('show'); toast(d.error); return; }
+  var it = d.item;
+  document.getElementById('adj_name').textContent     = it.name;
+  document.getElementById('adj_curstock').textContent = it.current;
+  document.getElementById('adj_uom').textContent      = it.uom;
+  document.getElementById('adj_qty').value = it.current;
+  box.classList.add('show');
+}
+
+async function submitAdj() {
+  var r = await resolveItemCode(document.getElementById('adj_code').value);
+  if (r.error) { showResult('adj_result', false, r.error); return; }
+  var code   = r.code.toUpperCase();
+  var qty    = document.getElementById('adj_qty').value;
+  var reason = document.getElementById('adj_reason').value.trim();
+  var user   = document.getElementById('adj_user').value.trim();
+  if (!code || qty === '') { showResult('adj_result', false, 'Item code and quantity are required.'); return; }
+  if (!reason)             { showResult('adj_result', false, 'Reason is required.'); return; }
+  var d = await api({api:'adjustStock', code:code, qty:qty, reason:reason, user:user});
+  if (d.ok) {
+    showResult('adj_result', true, 'Adjusted: ' + d.prev + ' → ' + d.newStock + ' | Txn: ' + d.txnId);
+    toast('Adjustment recorded ✓');
+    document.getElementById('adj_curstock').textContent = d.newStock;
+  } else {
+    showResult('adj_result', false, d.error || 'Failed.');
+  }
+}
+
+// ── QR SCANNER ────────────────────────────────────────────────────
+var _scanTarget = '';
+var _scanStream = null;
+var _scanRaf    = null;
+
+function openScanner(target) {
+  _scanTarget = target;
+  document.getElementById('scannerModal').classList.add('show');
+  startCamera();
+}
+
+function closeScanner() {
+  document.getElementById('scannerModal').classList.remove('show');
+  if (_scanStream) { _scanStream.getTracks().forEach(function(t) { t.stop(); }); _scanStream = null; }
+  if (_scanRaf) { cancelAnimationFrame(_scanRaf); _scanRaf = null; }
+}
+
+async function startCamera() {
+  try {
+    _scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    var video = document.getElementById('qrVideo');
+    video.srcObject = _scanStream;
+    video.play();
+    _scanRaf = requestAnimationFrame(scanFrame);
+  } catch(e) {
+    alert('Camera access denied. Please type the code manually.');
+    closeScanner();
+  }
+}
+
+function scanFrame() {
+  var video  = document.getElementById('qrVideo');
+  var canvas = document.getElementById('qrCanvas');
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    var img  = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+    var code = typeof jsQR !== 'undefined'
+      ? jsQR(img.data, img.width, img.height, {inversionAttempts:'dontInvert'})
+      : null;
+    if (code && code.data) { handleScan(code.data); return; }
+  }
+  _scanRaf = requestAnimationFrame(scanFrame);
+}
+
+function handleScan(data) {
+  closeScanner();
+  var targets = {si:'si_code', so:'so_code', adj:'adj_code'};
+  var inputId = targets[_scanTarget];
+  if (inputId) {
+    document.getElementById(inputId).value = data.toUpperCase();
+    if (_scanTarget === 'si')  lookupSI();
+    if (_scanTarget === 'so')  lookupSO();
+    if (_scanTarget === 'adj') lookupAdj();
+  }
+  toast('Scanned: ' + data);
+}
+
+// ── EDIT / VOID A SAVED ENTRY ─────────────────────────────────────
+// Corrections are made here, not in the spreadsheet, so stock, bag weights and the ledger stay in step.
+var _ee = null;          // { entry, item, bags } of the entry being edited
+var _eeDirty = false;    // something was saved: refresh the ledger (or whatever opened the dialog) when it closes
+var _eeAfter = null;     // what to refresh instead of the ledger, when the dialog was opened from the Items tab
+
+function bagNoOf(id) { return String(id).replace(/^[^0-9]*/, ''); }
+function eeNum(n) { return String(Math.round((parseFloat(n) || 0) * 1000) / 1000); }
+function eeVal(id) { return document.getElementById(id).value.trim(); }
+function eeBag(id) { return _ee.bags.filter(function(b) { return b.id === id; })[0]; }
+var _eeName = '';       // the name typed in this page session, for browsers that will not keep it between visits
+function eeSavedName() { try { return localStorage.getItem('apmEditUser') || _eeName; } catch (e) { return _eeName; } }
+function eeRememberName(n) { _eeName = n; try { localStorage.setItem('apmEditUser', n); } catch (e) {} }
+
+function closeEditEntry() {
+  document.getElementById('editEntryModal').classList.remove('show');
+  _ee = null;
+  var after = _eeAfter;
+  _eeAfter = null;
+  if (_eeDirty) { _eeDirty = false; if (after) after(); else loadLedger(); }
+}
+
+async function openEditEntry(txnId, after) {
+  _eeAfter = typeof after === 'function' ? after : null;
+  document.getElementById('editEntryModal').classList.add('show');
+  document.getElementById('ee_title').textContent = 'Edit ' + txnId;
+  document.getElementById('ee_body').innerHTML = '<p class="dim">Loading…</p>';
+  var d = await api({api:'getEntry', txnId:txnId});
+  if (d.error) {
+    document.getElementById('ee_body').innerHTML = '<div class="txn-result show error"><div class="txn-id">' + esc(d.error) + '</div></div>';
+    return;
+  }
+  _ee = d;
+  renderEditEntry();
+}
+
+function renderEditEntry() {
+  var e = _ee.entry, isIn = e.type === 'STOCK_IN';
+  var uom = esc((_ee.item && _ee.item.uom) || e.uom);
+  var stockNow = _ee.item ? eeNum(_ee.item.current) + ' ' + uom : '—';
+  var h = '<div class="ee-meta"><strong>' + esc(e.itemName) + '</strong> · ' + (isIn ? 'Stock In' : 'Stock Out') + ' · ' + esc(e.time) +
+          ' · by ' + esc(e.user) + '<br>In stock now: <strong>' + stockNow + '</strong>' +
+          (e.note ? '<br>✎ ' + esc(e.note) : '') + '</div>';
+
+  h += '<div class="form-row">' +
+         '<div class="form-group"><label>' + (isIn ? 'Supplier / Party' : 'Issued To / Party') + '</label><input id="ee_party" value="' + esc(e.party) + '"></div>' +
+         '<div class="form-group"><label>' + (isIn ? 'Reference / Challan No.' : 'Reference / Job No.') + '</label><input id="ee_ref" value="' + esc(e.ref) + '"></div>' +
+       '</div>';
+
+  if (isIn && _ee.bags.length) {
+    var counted = _ee.item && _ee.item.mtype !== 'WEIGHT';       // bags of counted pieces hold a quantity, not a weight
+    h += '<div class="card-title" style="margin:4px 0 8px">Bags: change ' + (counted ? 'a quantity' : 'a weight') + ', or remove a bag entered by mistake</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Bag No.</th><th class="right">' + (counted ? 'Quantity' : 'Weight') + ' (' + uom + ')</th><th class="right">Issued</th><th>Remove</th></tr></thead><tbody id="ee_bags">' +
+      _ee.bags.map(function(b) {
+        return '<tr data-id="' + esc(b.id) + '"><td><code>' + esc(bagNoOf(b.id)) + '</code></td>' +
+          '<td class="right"><input class="ee-bag-w" type="number" min="0.001" step="any" aria-label="Weight of bag ' + esc(bagNoOf(b.id)) + '" value="' + eeNum(b.received) + '"></td>' +
+          '<td class="right mono">' + (b.issued > 0 ? eeNum(b.issued) : '—') + '</td>' +
+          '<td>' + (b.removable
+            ? '<input type="checkbox" class="ee-bag-rm" aria-label="Remove bag ' + esc(bagNoOf(b.id)) + '">'
+            : '<span class="dim" style="font-size:11px">' + (b.issued > 0 ? 'in use' : 'only bag') + '</span>') + '</td></tr>';
+      }).join('') + '</tbody></table></div><div class="ee-total" id="ee_total"></div>';
+  } else {
+    var qty = isIn ? e.in : e.out;
+    var bagLine = (!isIn && _ee.bags.length)
+      ? 'From bag <strong>' + esc(bagNoOf(_ee.bags[0].id)) + '</strong>, which has ' + eeNum(_ee.bags[0].current) + ' ' + uom + ' left'
+      : '';
+    h += '<div class="form-row"><div class="form-group"><label>' + (isIn ? 'Quantity received' : 'Quantity issued') + ' (' + uom + ')</label>' +
+         '<input id="ee_qty" type="number" min="0.001" step="any" value="' + eeNum(qty) + '"></div>' +
+         '<div class="form-group"><label>&nbsp;</label><div class="dim" style="font-size:12.5px;padding-top:9px">' + bagLine + '</div></div></div>';
+  }
+
+  h += '<div class="form-row full"><div class="form-group"><label>Remarks</label><input id="ee_remarks" value="' + esc(e.remarks) + '"></div></div>' +
+       '<div class="form-row">' +
+         '<div class="form-group"><label>Reason for change <span class="dim" style="font-weight:400;text-transform:none">(needed if a weight or quantity changes, and to void)</span></label><input id="ee_reason" placeholder="e.g. rechecked on the scale"></div>' +
+         '<div class="form-group"><label>Your name *</label><input id="ee_user" value="' + esc(eeSavedName()) + '" placeholder="Who is making this change"></div>' +
+       '</div>' +
+       '<div class="ee-actions"><button class="btn btn-primary" id="ee_save">Save changes</button><span class="spacer"></span>' +
+         '<button class="btn btn-ghost ee-void" id="ee_void">Void this entry</button></div>' +
+       '<div id="ee_result" class="txn-result"></div><div id="ee_after"></div>';
+  document.getElementById('ee_body').innerHTML = h;
+
+  document.getElementById('ee_save').addEventListener('click', saveEditEntry);
+  document.getElementById('ee_void').addEventListener('click', voidEditEntry);
+  document.querySelectorAll('#ee_bags input').forEach(function(inp) { inp.addEventListener('input', eeTotals); inp.addEventListener('change', eeTotals); });
+  eeTotals();
+}
+
+function eeTotals() {
+  var box = document.getElementById('ee_total');
+  if (!box || !_ee) return;
+  var was = 0, now = 0;
+  document.querySelectorAll('#ee_bags tr[data-id]').forEach(function(tr) {
+    var b = eeBag(tr.dataset.id), rm = tr.querySelector('.ee-bag-rm'), w = tr.querySelector('.ee-bag-w');
+    was += b.received;
+    w.disabled = !!(rm && rm.checked);
+    if (!w.disabled) now += parseFloat(w.value) || 0;
+  });
+  var diff = Math.round((now - was) * 1000) / 1000;
+  box.innerHTML = 'Total ' + eeNum(now) + ' ' + esc(_ee.item ? _ee.item.uom : '') +
+    (Math.abs(diff) > 0.0005 ? ' <strong style="color:var(' + (diff > 0 ? '--success' : '--danger') + ')">(' + (diff > 0 ? '+' : '') + eeNum(diff) + ' from ' + eeNum(was) + ')</strong>' : '');
+}
+
+async function saveEditEntry() {
+  var e = _ee.entry, isIn = e.type === 'STOCK_IN', btn = document.getElementById('ee_save');
+  var user = eeVal('ee_user');
+  if (!user) { showResult('ee_result', false, 'Enter your name.'); return; }
+  var p = { api:'editEntry', txnId:e.id, user:user, reason:eeVal('ee_reason'),
+            party:eeVal('ee_party'), ref:eeVal('ee_ref'), remarks:eeVal('ee_remarks') };
+
+  var bagRows = document.querySelectorAll('#ee_bags tr[data-id]');
+  if (bagRows.length) {
+    var ch = [];
+    bagRows.forEach(function(tr) {
+      var b = eeBag(tr.dataset.id), rm = tr.querySelector('.ee-bag-rm'), w = tr.querySelector('.ee-bag-w').value;
+      if (rm && rm.checked) ch.push({ id:b.id, remove:true });
+      else if (parseFloat(w) !== b.received) ch.push({ id:b.id, weight:w });
+    });
+    if (ch.length) p.bags = ch;
+  }
+  var q = document.getElementById('ee_qty');
+  if (q) {
+    if (q.value === '') { showResult('ee_result', false, 'Enter the quantity.'); return; }
+    if (parseFloat(q.value) !== (isIn ? e.in : e.out)) p.qty = q.value;
+  }
+
+  btn.disabled = true; btn.textContent = 'Saving…';
+  var d = await api(p);
+  if (!d.ok) { btn.disabled = false; btn.textContent = 'Save changes'; showResult('ee_result', false, d.error || 'Could not save.'); return; }
+
+  eeRememberName(user);
+  _eeDirty = true;
+  var fresh = await api({api:'getEntry', txnId:e.id});        // show the corrected figures, ready for another edit
+  if (!fresh.error) { _ee = fresh; renderEditEntry(); }
+  showResult('ee_result', true, 'Saved.\n' + d.changes.map(esc).join('\n') +
+    (d.correctionTxnId ? '\nStock is now ' + eeNum(d.newStock) + ' ' + esc(d.uom) + ' (recorded as ' + d.correctionTxnId + ' in the Ledger).' : ''));
+
+  var labels = (d.bags || []).filter(function(b) { return (d.changedBags || []).indexOf(b.id) >= 0; }).map(function(b) {
+    return batchToLabel({ id:b.id, current:b.current, uom:d.uom, supplier:b.supplier, ref:b.ref, date:b.date }, e.itemName, _ee && _ee.item ? _ee.item.mtype : '');
+  });
+  if (labels.length) {
+    var after = document.getElementById('ee_after');
+    after.innerHTML = '<button class="btn btn-ghost" id="ee_print" style="margin-top:10px">🖨 Print ' + labels.length + ' updated bag label' + (labels.length === 1 ? '' : 's') + '</button>' +
+      '<div class="dim" style="font-size:12px;margin-top:6px">The old label on ' + (labels.length === 1 ? 'that bag shows' : 'those bags show') + ' the earlier weight.</div>';
+    document.getElementById('ee_print').addEventListener('click', function() { sendBagLabels(labels, this); });
+  }
+}
+
+async function voidEditEntry() {
+  var e = _ee.entry, isIn = e.type === 'STOCK_IN';
+  var user = eeVal('ee_user'), reason = eeVal('ee_reason');
+  if (!user)   { showResult('ee_result', false, 'Enter your name.'); return; }
+  if (!reason) { showResult('ee_result', false, 'Enter the reason for voiding this entry.'); return; }
+  if (!confirm('Void ' + e.id + '?\n\n' + (isIn ? 'The stock received is taken back' : 'The stock issued is put back') +
+               ' and the entry is marked VOID. This cannot be undone.')) return;
+
+  var btn = document.getElementById('ee_void');
+  btn.disabled = true; btn.textContent = 'Voiding…';
+  var d = await api({api:'voidEntry', txnId:e.id, user:user, reason:reason});
+  if (!d.ok) { btn.disabled = false; btn.textContent = 'Void this entry'; showResult('ee_result', false, d.error || 'Could not void.'); return; }
+
+  eeRememberName(user);
+  _eeDirty = true;
+  _ee = null;
+  document.getElementById('ee_title').textContent = e.id + ' voided';
+  document.getElementById('ee_body').innerHTML = '<div id="ee_result" class="txn-result"></div>' +
+    '<div class="ee-actions" style="margin-top:14px"><button class="btn btn-primary" id="ee_done">Close</button></div>';
+  showResult('ee_result', true, e.id + ' voided.\nStock is now ' + eeNum(d.newStock) + ' ' + esc(d.uom) + ' (recorded as ' + d.correctionTxnId + ' in the Ledger).');
+  document.getElementById('ee_done').addEventListener('click', closeEditEntry);
+}
+
+// ── ITEMS TAB: OPEN AN ITEM TO SEE ITS BAGS ───────────────────────
+// An item row opens a panel listing its bags, grouped by the Stock In entry that brought them in. A bag, or a whole
+// entry, can be corrected or deleted from there. It uses the same server rules as the Ledger's Edit dialog
+// (editEntry / voidEntry), so stock, bag weights and the ledger stay in step.
+var _itemOpen = {};      // item code → { d: what the server sent (null until it arrives), loading, hideEmpty, find }
+
+function ipEl(code) {
+  var all = document.querySelectorAll('#itemsTbl .ip');
+  for (var i = 0; i < all.length; i++) if (all[i].dataset.code === code) return all[i];
+  return null;
+}
+
+function itemRowEl(code) {
+  var all = document.querySelectorAll('#itemsTbl tr.item-row');
+  for (var i = 0; i < all.length; i++) if (all[i].dataset.code === code) return all[i];
+  return null;
+}
+
+function ipDetailRowHtml(code) {
+  return '<tr class="item-detail"><td colspan="10"><div class="ip" data-code="' + esc(code) + '">' + ipPanelHtml(code) + '</div></td></tr>';
+}
+
+// The panel is as wide as the visible table, so on a narrow screen it stays in view while the table scrolls sideways.
+function sizeItemPanels() {
+  var wrap = document.querySelector('#tabItems .tbl-wrap');
+  var w = wrap ? wrap.clientWidth : 0;
+  if (!w) return;
+  document.querySelectorAll('#itemsTbl .ip').forEach(function(p) { p.style.width = w + 'px'; });
+}
+
+function ipCounts(d) {
+  var c = { n: 0, empty: 0, left: 0 };
+  d.groups.forEach(function(g) { g.bags.forEach(function(b) { c.n++; if (b.current <= 0) c.empty++; c.left += b.current; }); });
+  c.left = Math.round(c.left * 1000) / 1000;
+  return c;
+}
+
+function ipPanelHtml(code) {
+  var st = _itemOpen[code], d = st && st.d;
+  if (!d) return '<div class="ip-msg">Loading…</div>';
+  if (d.error) return '<div class="ip-msg ip-err">' + esc(d.error) + ' <button class="btn btn-ghost btn-sm" data-act="retry">Try again</button></div>';
+  var c = ipCounts(d), uom = esc(d.item.uom);
+  var h = '<div class="ip-head">';
+  if (c.n) {
+    h += '<div class="ip-sum"><strong>' + c.n + ' bag' + (c.n === 1 ? '' : 's') + '</strong> · ' + eeNum(c.left) + ' ' + uom + ' in stock' +
+         (c.empty ? ' · ' + c.empty + ' empty' : '') + '</div><span class="spacer"></span>';
+    if (c.n > 8) h += '<input class="ip-find" type="search" placeholder="Find bag no." aria-label="Find a bag by its number" value="' + esc(st.find) + '">';
+    if (c.empty) h += '<label class="ip-opt"><input type="checkbox" class="ip-hide"' + (st.hideEmpty ? ' checked' : '') + '> Hide empty bags</label>';
+  } else {
+    h += '<div class="ip-sum">No bags are recorded for this item. To get bags (and a label for each), tick “Track individual bags” when you do a Stock In.</div>';
+  }
+  h += '</div>';
+  if (c.n && Math.abs(c.left - d.item.current) > 0.0005)
+    h += '<div class="ip-warn">The bags add up to ' + eeNum(c.left) + ' ' + uom + ', but the item shows ' + eeNum(d.item.current) + ' ' + uom +
+         '. Part of the stock is not in bags: it was received without bag tracking, or issued or adjusted without choosing a bag.</div>';
+  return h + '<div class="ip-list">' + ipListHtml(code) + '</div>';
+}
+
+function ipListHtml(code) {
+  var st = _itemOpen[code], d = st.d, uom = esc(d.item.uom);
+  var q = String(st.find || '').replace(/^\s*bch-?/i, '').trim();
+  var h = '', shown = 0;
+  d.groups.forEach(function(g) {
+    var rows = g.bags.filter(function(b) { return (!st.hideEmpty || b.current > 0) && (!q || b.no.indexOf(q) >= 0); });
+    if (!rows.length) return;
+    shown += rows.length;
+    var n = g.bags.length;
+    h += '<div class="ip-group"><div class="ip-ghead"><div class="ip-gmeta"><strong>' + (g.txnId ? esc(g.txnId) : 'Other bags') + '</strong>' +
+         (g.time ? ' · ' + esc(g.time) : '') + (g.user ? ' · by ' + esc(g.user) : '') +
+         (g.note ? ' <span title="' + esc(g.note) + '" style="cursor:help">✎</span>' : '') +
+         '<div class="dim">' + n + ' bag' + (n === 1 ? '' : 's') + ' · ' + eeNum(g.total) + ' ' + uom +
+         (g.party ? ' · ' + esc(g.party) : '') + (g.ref ? ' · Ref ' + esc(g.ref) : '') + (g.remarks ? ' · ' + esc(g.remarks) : '') + '</div></div>' +
+         '<div class="ip-gact">' +
+           (g.bags.some(function(b) { return b.current > 0; })
+             ? '<button class="btn btn-ghost btn-sm" data-act="entry-print" data-txn="' + esc(g.txnId) + '" title="Print the labels of all bags in this entry, as one PDF">🖨 Print labels</button>' : '') +
+           (g.editable
+             ? '<button class="btn btn-ghost btn-sm" data-act="entry-edit" data-txn="' + esc(g.txnId) + '">✎ Edit entry</button>' +
+               '<button class="btn btn-ghost btn-sm ip-del" data-act="entry-del" data-txn="' + esc(g.txnId) + '">🗑 Delete entry</button>'
+             : '<span class="dim" style="font-size:12px;align-self:center">No entry record, so these bags cannot be changed here.</span>') +
+         '</div>' +
+         '</div><div class="tbl-wrap"><table><thead><tr><th>Bag No.</th><th class="right">Received</th><th class="right">Issued</th>' +
+         '<th class="right">Left</th><th>Status</th><th></th></tr></thead><tbody>' +
+         rows.map(function(b) {
+           return '<tr' + (b.current <= 0 ? ' class="ip-empty"' : '') + '><td><code>' + esc(b.no) + '</code></td>' +
+             '<td class="right mono">' + eeNum(b.received) + '</td>' +
+             '<td class="right mono">' + (b.issued > 0 ? eeNum(b.issued) : '—') + '</td>' +
+             '<td class="right mono"><strong>' + eeNum(b.current) + '</strong></td>' +
+             '<td><span class="badge ' + (b.status === 'ACTIVE' ? 'badge-active' : 'badge-inactive') + '">' + esc(b.status) + '</span></td>' +
+             '<td><div class="ip-acts">' +
+               (b.current > 0
+                 ? '<button class="btn btn-ghost btn-sm" data-act="bag-print" data-txn="' + esc(g.txnId) + '" data-bag="' + esc(b.id) + '" aria-label="Print label of bag ' + esc(b.no) + '" title="Print the label of bag ' + esc(b.no) + '">🖨<span class="ip-lbl"> Print</span></button>' : '') +
+               (g.editable
+                 ? '<button class="btn btn-ghost btn-sm" data-act="bag-edit" data-txn="' + esc(g.txnId) + '" data-bag="' + esc(b.id) + '" aria-label="Edit bag ' + esc(b.no) + '" title="Edit bag ' + esc(b.no) + '">✎<span class="ip-lbl"> Edit</span></button>' +
+                   '<button class="btn btn-ghost btn-sm ip-del" data-act="bag-del" data-txn="' + esc(g.txnId) + '" data-bag="' + esc(b.id) + '" aria-label="Delete bag ' + esc(b.no) + '" title="Delete bag ' + esc(b.no) + '">🗑<span class="ip-lbl"> Delete</span></button>'
+                 : '') + '</div></td></tr>';
+         }).join('') + '</tbody></table></div></div>';
+  });
+  if (d.groups.length && !shown) h += '<div class="ip-msg">No bags match.</div>';
+
+  if (d.entries.length) {
+    h += '<div class="ip-etitle">Entries' + (d.groups.length ? '<span class="dim">Stock Ins that came with bags are listed above</span>' : '') + '</div>' +
+      '<div class="ip-group"><div class="tbl-wrap"><table><thead><tr><th>Entry</th><th>Time</th><th>Type</th><th class="right">Quantity</th>' +
+      '<th>Bag</th><th>Party / Ref</th><th>By</th><th></th></tr></thead><tbody>' +
+      d.entries.map(function(e) {
+        var isIn = e.type === 'STOCK_IN';
+        return '<tr><td><code style="font-size:11px">' + esc(e.id) + '</code>' + (e.note ? ' <span title="' + esc(e.note) + '" style="cursor:help">✎</span>' : '') + '</td>' +
+          '<td class="dim" style="font-size:11.5px;white-space:nowrap">' + esc(e.time) + '</td>' +
+          '<td>' + typeBadge(e.type) + '</td>' +
+          '<td class="right mono" style="color:var(--' + (isIn ? 'success' : 'danger') + ')">' + (isIn ? '+' : '-') + eeNum(e.qty) + ' ' + esc(e.uom) + '</td>' +
+          '<td class="dim">' + (e.bagId.indexOf('BCH-') === 0 ? esc(bagNoOf(e.bagId)) : '—') + '</td>' +
+          '<td class="dim">' + esc([e.party, e.ref].filter(Boolean).join(' · ')) + '</td>' +
+          '<td class="dim">' + esc(e.user) + '</td>' +
+          '<td><div class="ip-acts">' +
+            (isIn ? '<button class="btn btn-ghost btn-sm" data-act="txn-print" data-txn="' + esc(e.id) + '" aria-label="Print label for ' + esc(e.id) + '" title="Make a bag for this entry and print its label">🖨<span class="ip-lbl"> Print</span></button>' : '') +
+            '<button class="btn btn-ghost btn-sm" data-act="txn-edit" data-txn="' + esc(e.id) + '" aria-label="Edit ' + esc(e.id) + '" title="Edit ' + esc(e.id) + '">✎<span class="ip-lbl"> Edit</span></button>' +
+            '<button class="btn btn-ghost btn-sm ip-del" data-act="txn-del" data-txn="' + esc(e.id) + '" aria-label="Delete ' + esc(e.id) + '" title="Delete ' + esc(e.id) + '">🗑<span class="ip-lbl"> Delete</span></button></div></td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+    if (d.entriesMore > 0)
+      h += '<div class="ip-note">' + d.entriesMore + ' older ' + (d.entriesMore === 1 ? 'entry is' : 'entries are') + ' not shown. <button class="link-btn" data-act="ledger">See them all in the Ledger</button></div>';
+  }
+  if (d.deleted > 0)
+    h += '<div class="ip-note">' + d.deleted + ' deleted bag' + (d.deleted === 1 ? ' is' : 's are') + ' not shown. Their history is in the Ledger and the EditLog sheet.</div>';
+  return h;
+}
+
+async function loadItemPanel(code) {
+  var st = _itemOpen[code];
+  if (!st || st.loading) return;
+  st.loading = true;
+  var d = await api({api:'getItemDetail', code:code});
+  st = _itemOpen[code];
+  if (!st) return;                       // the row was closed while the bags were loading
+  st.loading = false;
+  st.d = d;
+  var panel = ipEl(code);
+  if (panel) { panel.innerHTML = ipPanelHtml(code); sizeItemPanels(); }
+}
+
+function toggleItem(code) {
+  var row = itemRowEl(code);
+  if (!row) return;
+  var btn = row.querySelector('.bags-btn');
+  if (_itemOpen[code]) {
+    delete _itemOpen[code];
+    var next = row.nextElementSibling;
+    if (next && next.classList.contains('item-detail')) next.remove();
+    row.classList.remove('open');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  _itemOpen[code] = { d: null, loading: false, hideEmpty: false, find: '' };
+  row.classList.add('open');
+  if (btn) btn.setAttribute('aria-expanded', 'true');
+  row.insertAdjacentHTML('afterend', ipDetailRowHtml(code));
+  sizeItemPanels();
+  loadItemPanel(code);
+}
+
+async function refreshItems() {
+  var d = await api({api:'getItems', status:'ALL'});
+  if (d.error) return;
+  _allItems = d.items || [];
+  filterItems();
+}
+
+// something was saved for this item: show the new stock figure and the new bag list
+async function afterItemChange(code) {
+  await Promise.all([loadItemPanel(code), refreshItems()]);
+}
+
+function ipAct(btn) {
+  var panel = btn.closest('.ip'), code = panel.dataset.code, a = btn.dataset.act;
+  if (a === 'bag-edit')        openBagDialog('edit', code, btn.dataset.txn, btn.dataset.bag);
+  else if (a === 'bag-del')    openBagDialog('del', code, btn.dataset.txn, btn.dataset.bag);
+  else if (a === 'entry-del' || a === 'txn-del') openBagDialog(a, code, btn.dataset.txn);
+  else if (a === 'bag-print')   printBagLabel(code, btn.dataset.txn, btn.dataset.bag, btn);
+  else if (a === 'entry-print') printEntryLabels(code, btn.dataset.txn, btn);
+  else if (a === 'txn-print')   printEntryLabel(code, btn.dataset.txn, btn);
+  else if (a === 'entry-edit' || a === 'txn-edit') openEditEntry(btn.dataset.txn, function() { afterItemChange(code); });
+  else if (a === 'ledger')     { document.getElementById('ledItemFilter').value = code; setTab('ledger'); loadLedger(); }
+  else if (a === 'retry')      { _itemOpen[code].d = null; _itemOpen[code].loading = false; panel.innerHTML = ipPanelHtml(code); loadItemPanel(code); }
+}
+
+// ── printing labels from the panel ──
+function ipFind(code, txnId, bagId) {          // what the panel shows right now for this entry / bag
+  var d = _itemOpen[code] && _itemOpen[code].d;
+  if (!d || d.error) return null;
+  var g = d.groups.filter(function(x) { return x.txnId === txnId; })[0];
+  return { d: d, g: g, e: d.entries.filter(function(x) { return x.id === txnId; })[0],
+           b: g && bagId ? g.bags.filter(function(x) { return x.id === bagId; })[0] : null };
+}
+
+function ipLabel(d, g, b) {
+  return batchToLabel({ id:b.id, current:b.current, uom:d.item.uom, supplier:g.party, ref:g.ref, date:b.date }, d.item.name, d.item.mtype);
+}
+
+function printBagLabel(code, txnId, bagId, btn) {
+  var f = ipFind(code, txnId, bagId);
+  if (!f || !f.b) { toast('That bag is no longer in the list. Refreshing…', 'danger'); loadItemPanel(code); return; }
+  sendBagLabels([ipLabel(f.d, f.g, f.b)], btn);
+}
+
+// all bags of one Stock In that still have stock, as one PDF
+function printEntryLabels(code, txnId, btn) {
+  var f = ipFind(code, txnId);
+  if (!f || !f.g) { toast('That entry is no longer in the list. Refreshing…', 'danger'); loadItemPanel(code); return; }
+  var labels = f.g.bags.filter(function(b) { return b.current > 0; }).map(function(b) { return ipLabel(f.d, f.g, b); });
+  if (!labels.length) { toast('No bag of this entry has stock left to label.'); return; }
+  sendBagLabels(labels, btn);
+}
+
+// A Stock In that has no bag: it gets one (its whole quantity, own number and QR), then the label goes to the printer.
+function printEntryLabel(code, txnId, btn) {
+  var f = ipFind(code, txnId);
+  if (!f || !f.e) { toast('That entry is no longer in the list. Refreshing…', 'danger'); loadItemPanel(code); return; }
+  var user = eeSavedName();
+  if (!user) { openBagDialog('make-bag', code, txnId); return; }     // first time on this computer: ask who is printing
+  makeBagAndPrint(code, f.e, user, btn);
+}
+
+async function makeBagAndPrint(code, e, user, btn) {
+  if (btn) btn.disabled = true;
+  toast('Making the bag and its label…', '', 8000);
+  var d = await api({api:'makeBagFromEntry', txnId:e.id, user:user});
+  if (!d.ok) { if (btn) btn.disabled = false; toast(d.error || 'Could not make the bag.', 'danger', 9000); return d; }
+  afterItemChange(code);                                              // the entry now shows as a bag
+  sendBagLabels([batchToLabel(d.bag, d.itemName, d.mtype)], { innerHTML: '', textContent: '', disabled: false }, {
+    ok:   'Bag ' + d.bag.no + ' made for ' + e.id + ' and its label sent to BARCODE PRINTER ✓',
+    fail: 'Bag ' + d.bag.no + ' was made but its label did not print (press Print on the bag to try again)'
+  });
+  return d;
+}
+
+async function submitMakeBag() {
+  var m = _bm, user = eeVal('bm_user'), btn = document.getElementById('bm_go');
+  if (!user) return showResult('bm_result', false, 'Enter your name.');
+  var idle = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Working…';
+  var d = await makeBagAndPrint(m.code, m.e, user, null);
+  if (!d.ok) { btn.disabled = false; btn.textContent = idle; return showResult('bm_result', false, esc(d.error || 'Could not make the bag.')); }
+  eeRememberName(user);
+  closeBagDialog();
+}
+
+// ── the small dialog: edit one bag's weight, delete one bag, delete a whole entry, or confirm who makes a bag ──
+// kind: 'edit' (a bag's weight), 'del' (a bag), 'entry-del' (a Stock In with its bags), 'txn-del' (a line of the Entries list)
+// or 'make-bag' (Print on an Entries line, when this computer does not yet know who is printing)
+var _bm = null;     // { kind, code, item, g (the Stock In entry), b (the bag), e (the Entries line) }
+
+function openBagDialog(kind, code, txnId, bagId) {
+  var st = _itemOpen[code], d = st && st.d && !st.d.error ? st.d : null;
+  var listed = kind === 'txn-del' || kind === 'make-bag';
+  var g = d && !listed ? d.groups.filter(function(x) { return x.txnId === txnId; })[0] : null;
+  var e = d && listed ? d.entries.filter(function(x) { return x.id === txnId; })[0] : null;
+  var b = g && bagId ? g.bags.filter(function(x) { return x.id === bagId; })[0] : null;
+  if (!(listed ? e : g) || (bagId && !b)) { toast('That is no longer in the list. Refreshing…', 'danger'); loadItemPanel(code); return; }
+  _bm = { kind: kind, code: code, item: d.item, g: g, b: b, e: e };
+  renderBagDialog();
+  document.getElementById('bagModal').classList.add('show');
+  var first = document.getElementById('bm_w') || document.getElementById('bm_reason') || document.getElementById('bm_user');
+  if (first) { first.focus(); if (first.select) first.select(); }
+}
+
+function closeBagDialog() {
+  document.getElementById('bagModal').classList.remove('show');
+  _bm = null;
+}
+
+function renderBagDialog() {
+  var m = _bm, g = m.g, b = m.b, uom = esc(m.item.uom), name = esc(m.item.name), h = '', title = '';
+  var from = g ? 'from <code>' + esc(g.txnId) + '</code>' + (b ? ', ' + esc(b.date) : g.time ? ', ' + esc(g.time) : '') : '';
+  var who = '<div class="form-row">' +
+      '<div class="form-group"><label>Reason *</label><input id="bm_reason" placeholder="e.g. typed wrong on the scale"></div>' +
+      '<div class="form-group"><label>Your name *</label><input id="bm_user" value="' + esc(eeSavedName()) + '" placeholder="Who is making this change"></div></div>';
+  var buttons = function(go, danger) {
+    return '<div class="ee-actions"><button class="btn ' + (danger ? 'btn-danger' : 'btn-primary') + '" id="bm_go">' + go + '</button>' +
+           '<button class="btn btn-ghost" id="bm_cancel">Cancel</button></div><div id="bm_result" class="txn-result"></div>';
+  };
+  var closeOnly = '<div class="ee-actions" style="margin-top:14px"><button class="btn btn-primary" id="bm_cancel">Close</button></div>';
+
+  if (m.kind === 'edit') {
+    title = 'Edit bag ' + b.no;
+    h = '<div class="ee-meta"><strong>' + name + '</strong> · ' + from + '<br>Received ' + eeNum(b.received) + ' · issued ' +
+        (b.issued > 0 ? eeNum(b.issued) : 'none') + ' · left ' + eeNum(b.current) + ' ' + uom + '</div>' +
+        '<div class="form-row"><div class="form-group"><label>' + (m.item.mtype === 'WEIGHT' ? 'Weight of this bag' : 'Quantity in this bag') + ' (' + uom + ')</label>' +
+        '<input id="bm_w" type="number" min="0.001" step="any" value="' + eeNum(b.received) + '"></div>' +
+        '<div class="form-group"><label>&nbsp;</label><div class="dim" id="bm_calc" style="font-size:12.5px"></div></div></div>' +
+        who + buttons('Save weight', false);
+  } else if (m.kind === 'del') {
+    title = 'Delete bag ' + b.no;
+    var meta = '<div class="ee-meta"><strong>' + name + '</strong> · bag <code>' + esc(b.no) + '</code> · ' + from + '</div>';
+    if (!b.deletable) {
+      var by = b.issuedBy;
+      h = meta + '<div class="txn-result show error"><div class="txn-id">This bag cannot be deleted yet</div><div class="txn-detail">' +
+          (b.issued > 0 ? eeNum(b.issued) + ' ' + uom + ' was issued from it' + (by.length ? ' (' + by.map(esc).join(', ') + ')' : '') + '.'
+                        : 'It is already marked ' + esc(b.status.toLowerCase()) + '.') +
+          ' Delete or correct that Stock Out first, then delete the bag. If only the weight was wrong, use Edit.</div></div>' +
+          (by.length ? '<div class="ee-actions" style="margin-top:12px">' + by.slice(0, 4).map(function(t) {
+            return '<button class="btn btn-ghost btn-sm" data-open-txn="' + esc(t) + '">Open ' + esc(t) + '</button>';
+          }).join('') + '</div>' : '') + closeOnly;
+    } else {
+      h = meta + '<p class="bm-text">' + (g.bags.length === 1 ? 'This is the only bag of <code>' + esc(g.txnId) + '</code>, so deleting it deletes the whole entry. ' : '') +
+          'Delete bag <strong>' + esc(b.no) + '</strong> (' + eeNum(b.received) + ' ' + uom + ')? That amount is taken out of the stock of ' + name +
+          ' and the bag is marked deleted. The Ledger and the EditLog keep a record. This cannot be undone.</p>' + who + buttons('Delete bag', true);
+    }
+  } else if (m.kind === 'make-bag') {
+    var me = m.e, mq = eeNum(me.qty) + ' ' + uom;
+    title = 'Print label for ' + me.id;
+    h = '<div class="ee-meta"><strong>' + name + '</strong> · <code>' + esc(me.id) + '</code>, ' + esc(me.time) + (me.user ? ' · by ' + esc(me.user) : '') + '</div>' +
+        '<p class="bm-text">This Stock In of ' + mq + ' has no bag yet. Printing makes one bag of ' + mq + ' for it, with its own number and QR code, and sends its label to the barcode printer. The stock does not change.</p>' +
+        '<div class="form-row full"><div class="form-group"><label>Your name *</label><input id="bm_user" value="' + esc(eeSavedName()) + '" placeholder="Who is printing this"></div></div>' +
+        buttons('Make bag and print label', false);
+  } else if (m.kind === 'txn-del') {
+    var e = m.e, isIn = e.type === 'STOCK_IN', qty = eeNum(e.qty) + ' ' + uom;
+    title = 'Delete ' + e.id;
+    h = '<div class="ee-meta"><strong>' + name + '</strong> · <code>' + esc(e.id) + '</code>, ' + esc(e.time) + (e.user ? ' · by ' + esc(e.user) : '') +
+        '<br>' + (isIn ? 'Stock In' : 'Stock Out') + ' of ' + qty + (e.party ? ' · ' + esc(e.party) : '') + (e.ref ? ' · ' + esc(e.ref) : '') + '</div>' +
+        '<p class="bm-text">Delete this entry? ' + (isIn ? 'The ' + qty + ' received is taken out of stock'
+          : 'The ' + qty + ' issued is put back into stock' + (e.bagId.indexOf('BCH-') === 0 ? ' and into bag ' + esc(bagNoOf(e.bagId)) : '')) +
+        ' and the entry is marked VOID in the Ledger. This cannot be undone.</p>' + who + buttons('Delete entry', true);
+  } else {
+    title = 'Delete ' + g.txnId;
+    var n = g.bags.length;
+    var emeta = '<div class="ee-meta"><strong>' + name + '</strong> · <code>' + esc(g.txnId) + '</code>' + (g.time ? ', ' + esc(g.time) : '') + (g.user ? ' · by ' + esc(g.user) : '') + '</div>';
+    if (!g.canVoid) {
+      h = emeta + '<div class="txn-result show error"><div class="txn-id">This entry cannot be deleted yet</div><div class="txn-detail">' + esc(g.voidBlock) +
+          ' Delete or correct that Stock Out first, or use Edit entry to change the bag weights or remove the unused bags.</div></div>' + closeOnly;
+    } else {
+      h = emeta + '<p class="bm-text">Delete <strong>' + esc(g.txnId) + '</strong> with its ' + n + ' bag' + (n === 1 ? '' : 's') + ' (' + eeNum(g.total) + ' ' + uom +
+          ')? That stock is taken out of ' + name + ' and the entry is marked VOID in the Ledger. This cannot be undone.</p>' + who + buttons('Delete entry', true);
+    }
+  }
+  document.getElementById('bm_title').textContent = title;
+  document.getElementById('bm_body').innerHTML = h;
+
+  var go = document.getElementById('bm_go'), cancel = document.getElementById('bm_cancel'), w = document.getElementById('bm_w');
+  if (go) go.addEventListener('click', submitBagDialog);
+  if (cancel) cancel.addEventListener('click', closeBagDialog);
+  if (w) { w.addEventListener('input', bmCalc); bmCalc(); }
+  document.querySelectorAll('#bm_body [data-open-txn]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var code = _bm.code;
+      closeBagDialog();
+      openEditEntry(btn.dataset.openTxn, function() { afterItemChange(code); });
+    });
+  });
+}
+
+// what the new weight means, as it is typed
+function bmCalc() {
+  var out = document.getElementById('bm_calc');
+  if (!out || !_bm || _bm.kind !== 'edit') return;
+  var w = parseFloat(document.getElementById('bm_w').value), b = _bm.b, u = esc(_bm.item.uom);
+  var diff = Math.round((w - b.received) * 1000) / 1000;
+  if (!(w > 0))                  out.textContent = '';
+  else if (Math.abs(diff) < 0.0005) out.textContent = 'Same as before';
+  else if (w < b.issued - 0.0005)   out.innerHTML = '<span style="color:var(--danger)">Not below ' + eeNum(b.issued) + ' ' + u + ', which was already issued</span>';
+  else out.innerHTML = 'Left in the bag: <strong>' + eeNum(w - b.issued) + ' ' + u + '</strong><br>Item stock: <strong style="color:var(--' +
+                       (diff > 0 ? 'success' : 'danger') + ')">' + (diff > 0 ? '+' : '') + eeNum(diff) + ' ' + u + '</strong>';
+}
+
+async function submitBagDialog() {
+  if (_bm.kind === 'make-bag') return submitMakeBag();
+  var m = _bm, user = eeVal('bm_user'), reason = eeVal('bm_reason'), btn = document.getElementById('bm_go');
+  var fail = function(msg) { showResult('bm_result', false, esc(msg)); };
+  if (!user) return fail('Enter your name.');
+  var p, whole = m.kind === 'entry-del' || m.kind === 'txn-del' || (m.kind === 'del' && m.g.bags.length === 1);
+  var txnId = m.kind === 'txn-del' ? m.e.id : m.g.txnId;
+  if (m.kind === 'edit') {
+    var raw = document.getElementById('bm_w').value, w = parseFloat(raw);
+    var what = m.item.mtype === 'WEIGHT' ? 'weight' : 'quantity';
+    if (!(w > 0)) return fail('Enter a ' + what + ' above 0.');
+    if (Math.abs(w - m.b.received) < 0.0005) return fail('The weight is the same as before.');
+    if (w < m.b.issued - 0.0005) return fail(eeNum(m.b.issued) + ' ' + m.item.uom + ' was already issued from this bag, so its ' + what + ' cannot be below that.');
+    if (!reason) return fail('Enter the reason for changing the ' + what + '.');
+    p = { api:'editEntry', txnId:txnId, user:user, reason:reason, bags:[{ id:m.b.id, weight:raw }] };
+  } else {
+    if (!reason) return fail('Enter the reason for deleting.');
+    p = whole ? { api:'voidEntry', txnId:txnId, user:user, reason:reason }
+              : { api:'editEntry', txnId:txnId, user:user, reason:reason, bags:[{ id:m.b.id, remove:true }] };
+  }
+
+  var idle = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Saving…';
+  var d = await api(p);
+  if (!d.ok) { btn.disabled = false; btn.textContent = idle; return fail(d.error || 'Could not save.'); }
+  eeRememberName(user);
+  afterItemChange(m.code);
+
+  if (m.kind !== 'edit') {
+    closeBagDialog();
+    toast((whole ? txnId : 'Bag ' + m.b.no) + ' deleted ✓ Stock is now ' + eeNum(d.newStock) + ' ' + d.uom, '', 4500);
+    return;
+  }
+  var labels = (d.bags || []).filter(function(x) { return (d.changedBags || []).indexOf(x.id) >= 0; }).map(function(x) {
+    return batchToLabel({ id:x.id, current:x.current, uom:d.uom, supplier:x.supplier, ref:x.ref, date:x.date }, m.item.name, m.item.mtype);
+  });
+  document.getElementById('bm_title').textContent = 'Bag ' + m.b.no + ' updated';
+  document.getElementById('bm_body').innerHTML = '<div id="bm_result" class="txn-result"></div><div id="bm_after"></div>' +
+    '<div class="ee-actions" style="margin-top:14px"><button class="btn btn-primary" id="bm_done">Done</button></div>';
+  showResult('bm_result', true, 'Saved.\n' + d.changes.map(esc).join('\n') +
+    '\nStock is now ' + eeNum(d.newStock) + ' ' + esc(d.uom) + ' (recorded as ' + esc(d.correctionTxnId) + ' in the Ledger).');
+  if (labels.length) {
+    document.getElementById('bm_after').innerHTML = '<button class="btn btn-ghost" id="bm_print" style="margin-top:10px">🖨 Print the new bag label</button>' +
+      '<div class="dim" style="font-size:12px;margin-top:6px">The label stuck on the bag still shows the earlier weight.</div>';
+    document.getElementById('bm_print').addEventListener('click', function() { sendBagLabels(labels, this); });
+  }
+  document.getElementById('bm_done').addEventListener('click', closeBagDialog);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────
+function showResult(id, ok, msg) {
+  var el = document.getElementById(id);
+  el.className = 'txn-result show ' + (ok ? 'success' : 'error');
+  el.innerHTML = msg.split('\n').map(function(line, i) {
+    return i === 0
+      ? '<div class="txn-id">' + line + '</div>'
+      : '<div class="txn-detail">' + line + '</div>';
+  }).join('');
+}
+
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── EVENT WIRING (no onclick attributes used anywhere) ────────────
+
+// Sidebar navigation
+document.getElementById('sidebarNav').addEventListener('click', function(e) {
+  var btn = e.target.closest('[data-tab]');
+  if (btn) setTab(btn.dataset.tab);
+});
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+  setTimeout(sizeItemPanels, 250);   // once the fold animation (0.2s) is done, bag panels take the new width
+});
+
+// Dashboard
+document.getElementById('setupBtn').addEventListener('click', runSetup);
+document.getElementById('refreshBtn').addEventListener('click', loadDashboard);
+
+// Items tab
+document.getElementById('addItemNavBtn').addEventListener('click', function() { setTab('addItem'); });
+document.getElementById('itemSearch').addEventListener('input', filterItems);
+document.getElementById('itemCatFilter').addEventListener('change', filterItems);
+document.getElementById('itemMtypeFilter').addEventListener('change', filterItems);
+
+// One listener on the table body: Edit, opening an item (its Bags button or a click on the row), and everything inside the bag panel
+var itemsTbody = document.getElementById('itemsTbl');
+itemsTbody.addEventListener('click', function(e) {
+  var act = e.target.closest('[data-act]');
+  if (act && act.closest('.ip')) { ipAct(act); return; }
+  var edit = e.target.closest('.edit-item-btn');
+  if (edit) { editItem(edit.dataset.code); return; }
+  var row = e.target.closest('tr.item-row');
+  if (!row) return;
+  var sel = window.getSelection();      // someone selecting text in the row (to copy it) must not open or close it
+  if (!e.target.closest('.bags-btn') && (e.target.closest('button, a, input, label') || (sel && !sel.isCollapsed))) return;
+  toggleItem(row.dataset.code);
+});
+itemsTbody.addEventListener('input', function(e) {
+  var f = e.target.closest('.ip-find');
+  if (!f) return;
+  var panel = f.closest('.ip');
+  _itemOpen[panel.dataset.code].find = f.value;
+  panel.querySelector('.ip-list').innerHTML = ipListHtml(panel.dataset.code);
+});
+itemsTbody.addEventListener('change', function(e) {
+  var h = e.target.closest('.ip-hide');
+  if (!h) return;
+  var panel = h.closest('.ip');
+  _itemOpen[panel.dataset.code].hideEmpty = h.checked;
+  panel.querySelector('.ip-list').innerHTML = ipListHtml(panel.dataset.code);
+});
+window.addEventListener('resize', sizeItemPanels);
+var itemsWrap = document.querySelector('#tabItems .tbl-wrap');
+if (window.ResizeObserver && itemsWrap) new ResizeObserver(sizeItemPanels).observe(itemsWrap);   // also when the sidebar is folded
+
+// the small bag / entry dialog
+document.getElementById('bm_close').addEventListener('click', closeBagDialog);
+document.getElementById('bm_body').addEventListener('keydown', function(e) {
+  var go = document.getElementById('bm_go');
+  if (e.key === 'Enter' && e.target.tagName === 'INPUT' && go && !go.disabled) { e.preventDefault(); go.click(); }
+});
+
+// Add item form
+document.getElementById('ai_mtype').addEventListener('change', toggleUOM);
+document.getElementById('ai_uom').addEventListener('change', syncAddConv);
+document.getElementById('saveItemBtn').addEventListener('click', submitAddItem);
+document.getElementById('cancelAddItemBtn').addEventListener('click', function() { setTab('items'); });
+
+// Edit item form
+document.getElementById('saveEditItemBtn').addEventListener('click', submitEditItem);
+document.getElementById('cancelEditItemBtn').addEventListener('click', function() { setTab('items'); });
+
+// Name search on every item-code box (attached first so Enter on an open list picks an item)
+attachItemSearch('si_code',       function() { clearTimeout(_siTimer); lookupSI(); });
+attachItemSearch('so_code',       function() { clearTimeout(_soTimer); lookupSO(); });
+attachItemSearch('adj_code',      function() { lookupAdj(); });
+attachItemSearch('lbl_code',      function() { lookupLabel(); });
+attachItemSearch('ledItemFilter', function() { loadLedger(); });
+document.getElementById('ledItemFilter').addEventListener('keydown', function(e) { if (e.key === 'Enter') loadLedger(); });
+
+// Stock In
+document.getElementById('si_code').addEventListener('input', onSICodeInput);
+document.getElementById('si_code').addEventListener('keydown', function(e) { if (e.key === 'Enter') lookupSI(); });
+document.getElementById('lookupSIBtn').addEventListener('click', lookupSI);
+document.getElementById('scanSIBtn').addEventListener('click', function() { openScanner('si'); });
+document.getElementById('confirmSIBtn').addEventListener('click', submitStockIn);
+document.getElementById('si_print_bags_btn').addEventListener('click', function() {
+  if (_pendingBagPrint) sendBagLabels(pendingBagLabels(), this);
+});
+document.getElementById('si_use_bags').addEventListener('change', function() {
+  var on = this.checked;
+  document.getElementById('si_bag_fields').style.display = on ? '' : 'none';
+  document.getElementById('si_qty').disabled = on;
+  if (!on) {
+    document.getElementById('si_bag_count').value = '';
+    document.getElementById('si_bag_each').value = '';
+    document.getElementById('si_bag_rows').innerHTML = '';
+    document.getElementById('si_bag_total').textContent = '—';
+    document.getElementById('si_qty').value = '';
+  }
+});
+function calcBagTotal() {
+  var inputs = document.getElementById('si_bag_rows').querySelectorAll('.bag-wt-input');
+  var sum = 0;
+  inputs.forEach(function(inp) { sum += parseFloat(inp.value) || 0; });
+  var counted = _siItem && _siItem.mtype !== 'WEIGHT';          // pieces are shown as they are, weights to 2 / 3 decimals
+  var shown = Math.round(sum * 1000) / 1000;
+  document.getElementById('si_bag_total').textContent = sum > 0 ? (counted ? String(shown) : sum.toFixed(2)) : '—';
+  document.getElementById('si_qty').value = sum > 0 ? (counted ? String(shown) : sum.toFixed(3)) : '';
+}
+function rebuildBagRows() {
+  var bc = parseInt(document.getElementById('si_bag_count').value) || 0;
+  var container = document.getElementById('si_bag_rows');
+  if (bc < 1 || bc > 50) { container.innerHTML = ''; document.getElementById('si_bag_total').textContent = '—'; document.getElementById('si_qty').value = ''; return; }
+  var existing = Array.from(container.querySelectorAll('.bag-wt-input')).map(function(el) { return el.value; });
+  var each = document.getElementById('si_bag_each').value;      // new rows start with the "same in every bag" figure, if one was typed
+  var unit = esc(siUnit());
+  var html = '';
+  for (var i = 0; i < bc; i++) {
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+            '<span style="font-size:12px;color:var(--txt2);min-width:46px">Bag ' + (i+1) + '</span>' +
+            '<input class="bag-wt-input" type="number" min="0.001" step="any" placeholder="' + unit + '" style="width:100px" value="' + esc(existing[i] || each || '') + '">' +
+            '<span style="font-size:12px;color:var(--txt2)">' + unit + '</span>' +
+            '</div>';
+  }
+  container.innerHTML = html;
+  container.querySelectorAll('.bag-wt-input').forEach(function(inp) {
+    inp.addEventListener('input', calcBagTotal);
+  });
+  calcBagTotal();
+}
+document.getElementById('si_bag_count').addEventListener('input', rebuildBagRows);
+document.getElementById('si_bag_each').addEventListener('input', function() {
+  var v = this.value;
+  document.querySelectorAll('#si_bag_rows .bag-wt-input').forEach(function(inp) { inp.value = v; });
+  calcBagTotal();
+});
+
+// Stock Out
+document.getElementById('so_code').addEventListener('input', onSOCodeInput);
+document.getElementById('so_code').addEventListener('keydown', function(e) { if (e.key === 'Enter') lookupSO(); });
+document.getElementById('lookupSOBtn').addEventListener('click', lookupSO);
+document.getElementById('scanSOBtn').addEventListener('click', function() { openScanner('so'); });
+document.getElementById('confirmSOBtn').addEventListener('click', submitStockOut);
+
+// Ledger
+document.getElementById('loadLedgerBtn').addEventListener('click', loadLedger);
+document.getElementById('ee_close').addEventListener('click', closeEditEntry);
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('bagModal').classList.contains('show')) closeBagDialog();
+  else if (document.getElementById('editEntryModal').classList.contains('show')) closeEditEntry();
+});
+
+// Labels
+document.getElementById('lbl_code').addEventListener('keydown', function(e) { if (e.key === 'Enter') lookupLabel(); });
+document.getElementById('lookupLabelBtn').addEventListener('click', lookupLabel);
+document.getElementById('printItemLabelBtn').addEventListener('click', printLabel);
+document.getElementById('printAllBagsBtn').addEventListener('click', function() {
+  if (!_lblItem || !_lblBatches.length) return;
+  sendBagLabels(_lblBatches.map(function(b) { return batchToLabel(b, _lblItem.name, _lblItem.mtype); }), this);
+});
+
+// Adjustment
+document.getElementById('adj_code').addEventListener('keydown', function(e) { if (e.key === 'Enter') lookupAdj(); });
+document.getElementById('lookupAdjBtn').addEventListener('click', lookupAdj);
+document.getElementById('scanAdjBtn').addEventListener('click', function() { openScanner('adj'); });
+document.getElementById('submitAdjBtn').addEventListener('click', submitAdj);
+
+// Scanner modal
+document.getElementById('scannerCloseBtn').addEventListener('click', closeScanner);
+document.getElementById('scannerCancelBtn').addEventListener('click', closeScanner);
+
+// ── INIT ──────────────────────────────────────────────────────────
+(async function init() {
+  try {
+    var d = await api({api:'dashboard'});
+    if (d.error) dashFail(d.error);
+    else _renderDashboard(d);
+  } catch(e) {
+    dashFail('Error: ' + e.message);
+  }
+})();
+</script>
+</body>
+</html>
