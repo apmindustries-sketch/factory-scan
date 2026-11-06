@@ -15,7 +15,7 @@ Object.defineProperty(google.script, 'run', { get: function() {
     withSuccessHandler: function(f) { ok = f; return runner; },
     withFailureHandler: function(f) { fail = f; return runner; }
   };
-  ["gsSetup","gsDashboard","gsGetItems","gsGetItem","gsAddItem","gsUpdateItem","gsStockIn","gsStockOut","gsGetBatch","gsGetBatches","gsGetLedger","gsGetCategories","gsAdjustStock","gsGetEntry","gsGetItemDetail","gsEditEntry","gsVoidEntry","gsMakeBagFromEntry"].forEach(function(name) {
+  ["gsSetup","gsDashboard","gsGetItems","gsGetItem","gsAddItem","gsUpdateItem","gsStockIn","gsStockOut","gsGetBatch","gsGetBatches","gsGetLedger","gsGetCategories","gsAdjustStock","gsGetEntry","gsGetItemDetail","gsEditEntry","gsVoidEntry","gsMakeBagFromEntry","gsChangeItemType"].forEach(function(name) {
     runner[name] = function(arg) {
       fetch("https://script.google.com/macros/s/AKfycbxDeKxI1rxckSq8kMr1FQCbnpHVJleQUcBsQ0bx3CcHhKZ3zujJH9YmU_A3-dkAYsGx/exec", { method: 'POST', body: JSON.stringify({ admin: name, arg: arg || {} }) })
         .then(function(r) { return r.json(); })
@@ -205,6 +205,9 @@ tr.item-detail:hover td{background:transparent}
 .conv-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--txt2)}
 .conv-line input{width:110px}
 .conv-hint{font-size:12px;color:var(--txt2);margin-top:6px;line-height:1.45}
+.type-note{background:var(--warn-light);border:1px solid var(--warn);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.55;color:var(--txt)}
+.type-ok{display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:13px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--txt);cursor:pointer}
+.type-ok input{width:auto;margin-top:3px}
 /* Labels tab: pick items and print their item labels together */
 .bulk-list{max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
 .bulk-list th{position:sticky;top:0;z-index:1}
@@ -379,6 +382,20 @@ code{font-family:monospace;font-size:12px;background:var(--surface2);padding:1px
         <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center">
           <code id="ei_code"></code>
           <span id="ei_badge"></span>
+        </div>
+        <div class="form-row full">
+          <div class="form-group">
+            <label>Type</label>
+            <select id="ei_mtype">
+              <option value="QUANTITY">Quantity (count-based)</option>
+              <option value="WEIGHT">Weight (kg-based)</option>
+            </select>
+          </div>
+        </div>
+        <div id="ei_type_note" class="type-note" style="display:none">
+          <div id="ei_type_text"></div>
+          <label id="ei_type_ok_row" class="type-ok" style="display:none"><input type="checkbox" id="ei_type_ok"> I understand: the numbers stay as they are, nothing is converted.</label>
+          <div class="form-group" style="margin-top:10px;max-width:300px"><label>Your name *</label><input id="ei_type_user" placeholder="Who is changing the type"></div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>Item Name</label><input id="ei_name"></div>
@@ -709,6 +726,7 @@ function apiOnce(params) {
       case 'editEntry':     gsr.gsEditEntry(arg);     break;
       case 'voidEntry':     gsr.gsVoidEntry(arg);     break;
       case 'makeBagFromEntry': gsr.gsMakeBagFromEntry(arg); break;
+      case 'changeItemType':   gsr.gsChangeItemType(arg);   break;
       default: clearTimeout(timer); resolve({error: 'Unknown API: ' + a});
     }
   });
@@ -973,13 +991,58 @@ async function submitAddItem() {
 }
 
 // ── EDIT ITEM ─────────────────────────────────────────────────────
+var _eiOrig = null;     // the item as saved: { code, mtype, uom, current }
+var _eiBags = null;     // how many live bags it holds, looked up the first time its type is changed
+
+function typeLabel(m) { return m === 'WEIGHT' ? 'WEIGHT (KG)' : 'QUANTITY (PCS)'; }
+function typeUnit(m)  { return m === 'WEIGHT' ? 'KG' : 'PCS'; }
+function itemTypeBadge(it) { return '<span class="badge ' + (it.mtype === 'WEIGHT' ? 'badge-wt' : 'badge-qty') + '">' + esc(it.mtype) + ' · ' + esc(it.uom) + '</span>'; }
+
+// Picking another type shows what it will do BEFORE anything is saved: the unit changes, the numbers do not.
+async function syncEditType() {
+  var o = _eiOrig, to = document.getElementById('ei_mtype').value;
+  if (!o) return;
+  document.getElementById('ei_conv_row').style.display = to === 'WEIGHT' ? '' : 'none';     // the pieces reference follows the type being chosen
+  document.getElementById('ei_convUnit').textContent   = typeUnit(to).toLowerCase();
+  if (to === o.mtype) { document.getElementById('ei_type_note').style.display = 'none'; return; }
+  document.getElementById('ei_type_note').style.display = '';
+  renderTypeNote();
+  if (!_eiBags) {
+    var d = await api({api:'getItemDetail', code:o.code});
+    if (!_eiOrig || _eiOrig.code !== o.code || d.error) return;
+    _eiBags = { count: d.groups.reduce(function(n, g) { return n + g.bags.filter(function(b) { return b.status === 'ACTIVE'; }).length; }, 0) };
+    if (document.getElementById('ei_mtype').value !== _eiOrig.mtype) renderTypeNote();
+  }
+}
+
+function renderTypeNote() {
+  var o = _eiOrig, to = document.getElementById('ei_mtype').value;
+  var bags = _eiBags ? _eiBags.count : 0, holds = o.current !== 0 || bags > 0;
+  var h = '<strong>Changing from ' + typeLabel(o.mtype) + ' to ' + typeLabel(to) + '.</strong><br>';
+  if (holds) {
+    h += eeNum(o.current) + ' ' + esc(o.uom) + ' in stock' + (bags ? ' (in ' + bags + ' bag' + (bags === 1 ? '' : 's') + ')' : '') +
+         ' becomes <strong>' + eeNum(o.current) + ' ' + typeUnit(to) + '</strong>' + (bags ? ', and the bags keep their numbers too' : '') + '. ' +
+         '<strong>Nothing is converted.</strong> Past entries keep the unit they were recorded in. If the real figure is different, correct it afterwards: the stock with the Adjustment tab' +
+         (bags ? ' and each bag with Edit in its Bags list' : '') + '.';
+  } else {
+    h += 'No stock or bags are recorded for this item, so nothing else changes.';
+  }
+  document.getElementById('ei_type_text').innerHTML = h;
+  document.getElementById('ei_type_ok_row').style.display = holds ? '' : 'none';
+}
+
 async function editItem(code) {
   var d = await api({api:'getItem', code:code});
   if (d.error) { toast(d.error); return; }
   var it = d.item;
   document.getElementById('ei_code').textContent = it.code;
-  document.getElementById('ei_badge').innerHTML =
-    '<span class="badge ' + (it.mtype === 'WEIGHT' ? 'badge-wt' : 'badge-qty') + '">' + it.mtype + ' · ' + it.uom + '</span>';
+  document.getElementById('ei_badge').innerHTML = itemTypeBadge(it);
+  _eiOrig = { code: it.code, mtype: it.mtype, uom: it.uom, current: parseFloat(it.current) || 0 };
+  _eiBags = null;
+  document.getElementById('ei_mtype').value = it.mtype;
+  document.getElementById('ei_type_note').style.display = 'none';
+  document.getElementById('ei_type_ok').checked = false;
+  document.getElementById('ei_type_user').value = eeSavedName();
   document.getElementById('ei_name').value     = it.name;
   document.getElementById('ei_cat').value      = it.category || '';
   document.getElementById('ei_desc').value     = it.desc || '';
@@ -1011,10 +1074,42 @@ async function submitEditItem() {
   if (document.getElementById('ei_conv_row').style.display !== 'none') {       // weighed items: both boxes empty clears the reference
     p.convWeight = document.getElementById('ei_convW').value;
     p.convPcs    = document.getElementById('ei_convP').value;
+    var cw = parseFloat(p.convWeight) || 0, cp = parseFloat(p.convPcs) || 0;     // half a reference is refused before anything is saved
+    if (cw < 0 || cp < 0 || (cw > 0) !== (cp > 0)) {
+      showResult('editItemResult', false, 'For the pieces reference, enter both the weight and the number of pieces (both above 0), or leave both empty.');
+      return;
+    }
+  }
+
+  // A changed type is saved first (it asks for a name, and a tick when the item holds stock or bags); then the rest.
+  var newType = document.getElementById('ei_mtype').value;
+  var typeChanged = !!_eiOrig && _eiOrig.code === code && newType !== _eiOrig.mtype;
+  if (typeChanged) {
+    var user = document.getElementById('ei_type_user').value.trim();
+    var okRow = document.getElementById('ei_type_ok_row');
+    if (!user) { showResult('editItemResult', false, 'Enter your name to change the type.'); return; }
+    if (okRow.style.display !== 'none' && !document.getElementById('ei_type_ok').checked) {
+      showResult('editItemResult', false, 'Tick the box to confirm that the numbers stay as they are.'); return;
+    }
+    var btn = document.getElementById('saveEditItemBtn');
+    btn.disabled = true;
+    var c = await api({api:'changeItemType', code:code, mtype:newType, user:user, confirm: okRow.style.display !== 'none' ? '1' : ''});
+    btn.disabled = false;
+    if (!c.ok) {
+      if (c.needConfirm) okRow.style.display = '';                              // it holds more than this page knew about
+      showResult('editItemResult', false, esc(c.error || 'Could not change the type.'));
+      return;
+    }
+    eeRememberName(user);
+    _eiOrig.mtype = c.mtype; _eiOrig.uom = c.uom;
+    document.getElementById('ei_badge').innerHTML = itemTypeBadge({ mtype: c.mtype, uom: c.uom });
+    document.getElementById('ei_convUnit').textContent = String(c.uom).toLowerCase();
+    document.getElementById('ei_type_note').style.display = 'none';
+    document.getElementById('ei_type_ok').checked = false;
   }
   var d = await api(p);
-  if (d.ok) { showResult('editItemResult', true, 'Changes saved.'); toast('Item updated ✓'); }
-  else       { showResult('editItemResult', false, d.error || 'Update failed.'); }
+  if (d.ok) { showResult('editItemResult', true, typeChanged ? 'Changes saved. This item is now ' + typeLabel(newType) + '.' : 'Changes saved.'); toast('Item updated ✓'); }
+  else       { showResult('editItemResult', false, (typeChanged ? 'The type was changed, but the other changes were not saved: ' : '') + esc(d.error || 'Update failed.')); }
 }
 
 // ── ITEM SEARCH (type part of a name or code, pick from the list) ──
@@ -2402,6 +2497,7 @@ document.getElementById('bm_body').addEventListener('keydown', function(e) {
 // Add item form
 document.getElementById('ai_mtype').addEventListener('change', toggleUOM);
 document.getElementById('ai_uom').addEventListener('change', syncAddConv);
+document.getElementById('ei_mtype').addEventListener('change', syncEditType);
 document.getElementById('saveItemBtn').addEventListener('click', submitAddItem);
 document.getElementById('cancelAddItemBtn').addEventListener('click', function() { setTab('items'); });
 
