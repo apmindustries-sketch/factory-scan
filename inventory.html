@@ -205,6 +205,15 @@ tr.item-detail:hover td{background:transparent}
 .conv-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--txt2)}
 .conv-line input{width:110px}
 .conv-hint{font-size:12px;color:var(--txt2);margin-top:6px;line-height:1.45}
+/* Labels tab: pick items and print their item labels together */
+.bulk-list{max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+.bulk-list th{position:sticky;top:0;z-index:1}
+.bulk-list th,.bulk-list td{padding:7px 12px}
+.bulk-list tbody tr{cursor:pointer}
+.bulk-list tbody tr.sel td{background:var(--primary-light)}
+.bulk-list input[type=checkbox]{width:auto}
+.bulk-foot{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.bulk-foot .spacer{flex:1}
 @media(max-width:520px){
   #editEntryModal .modal-box{padding:16px}
   #editEntryModal .form-row{grid-template-columns:1fr}
@@ -212,6 +221,7 @@ tr.item-detail:hover td{background:transparent}
   .ee-bag-w{width:84px}
   #bagModal .modal-box{padding:16px}
   #bagModal .form-row{grid-template-columns:1fr}
+  .bulk-list th,.bulk-list td{padding:7px 6px}
   .ip{padding:12px}
   .ip table th,.ip table td{padding:6px 7px}
   .ip-lbl{display:none}
@@ -548,6 +558,28 @@ code{font-family:monospace;font-size:12px;background:var(--surface2);padding:1px
           <div id="lbl_nobags" class="dim" style="display:none;margin-top:14px;font-size:12.5px;line-height:1.5"></div>
         </div>
       </div>
+
+      <!-- Item labels of many items at once -->
+      <div class="form-card" style="margin-top:16px;max-width:760px">
+        <div class="card-title" style="margin-bottom:4px">Print item labels in bulk</div>
+        <div class="dim" style="font-size:12.5px;margin-bottom:12px;line-height:1.5">Select the items you need, or print them all. Every label goes to the barcode printer together, as one PDF.</div>
+        <div class="search-bar" style="margin-bottom:10px">
+          <input id="bulkSearch" type="search" placeholder="Search name or code…">
+          <select id="bulkCat"><option value="">All categories</option></select>
+          <button class="btn btn-ghost btn-sm" id="bulkAllBtn">Select all shown</button>
+          <button class="btn btn-ghost btn-sm" id="bulkNoneBtn">Clear selection</button>
+        </div>
+        <div class="bulk-list"><table>
+          <thead><tr><th style="width:36px"><input type="checkbox" id="bulkHead" aria-label="Select or clear every item shown"></th><th>Code</th><th>Item name</th><th>Category</th></tr></thead>
+          <tbody id="bulkTbl"><tr><td colspan="4" class="empty">—</td></tr></tbody>
+        </table></div>
+        <div class="bulk-foot">
+          <div class="dim" id="bulkCount" style="font-size:12.5px"></div>
+          <span class="spacer"></span>
+          <button class="btn btn-primary" id="bulkPrintSelBtn" disabled>🖨 Print selected</button>
+          <button class="btn btn-ghost" id="bulkPrintAllBtn" disabled>🖨 Print all</button>
+        </div>
+      </div>
     </div>
 
     <!-- ADJUSTMENT -->
@@ -704,6 +736,7 @@ function setTab(tab) {
   if (tab === 'dashboard') loadDashboard();
   if (tab === 'items')     loadItems();
   if (tab === 'addItem')   prepAddItem();
+  if (tab === 'labels')    loadBulkItems();
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────
@@ -1454,13 +1487,16 @@ async function labelApi(body) {
   }
 }
 
+// What names a label in the file name: the bag's ID, or "Item-<number>" for an item label ({itemCode, name, category}).
+function labelId(l) { return l.itemCode ? 'Item-' + (String(l.itemCode).replace(/^[^0-9]*/, '') || l.itemCode) : l.bagId; }
+
 async function makeLabelPdf(labels, onProgress) {
   if (labels.length <= LABEL_PART) {
     const d = await labelApi({ action: 'generateBagLabels', bags: labels });
     if (!d.ok) throw new Error(d.error || 'failed');
     return;
   }
-  const first = labels[0].bagId, last = labels[labels.length - 1].bagId;
+  const first = labelId(labels[0]), last = labelId(labels[labels.length - 1]);
   const job = await labelApi({ action: 'bagLabelsStart', firstBag: first });
   if (!job.ok) throw new Error(job.error || 'could not start');
   for (let i = 0; i < labels.length; i += LABEL_PART) {
@@ -1522,6 +1558,92 @@ async function sendItemLabel(item, btn) {
     btn.disabled = false;
     btn.textContent = idleText;
   }
+}
+
+// ── LABELS TAB: ITEM LABELS OF MANY ITEMS AT ONCE ─────────────────
+// Select items (or take every item shown) and press Print: all their item labels go out as ONE PDF to the BARCODE
+// PRINTER folder, built the same way as bag labels (one request up to 25 labels, more in parts of 25).
+var _bulkItems = [];     // the active items, in code order
+var _bulkSel = {};       // code → true for the selected ones (kept while the page stays open)
+var _bulkBusy = false;   // a PDF is being made
+
+function codeNo(c) { return parseInt(String(c).replace(/^[^0-9]*/, ''), 10) || 0; }
+
+async function loadBulkItems() {
+  var tbody = document.getElementById('bulkTbl');
+  if (!_bulkItems.length) tbody.innerHTML = '<tr><td colspan="4" class="empty">Loading…</td></tr>';
+  var d = await api({api:'getItems', status:'ACTIVE'});
+  if (d.error) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty" style="color:var(--danger)">' + esc(d.error) +
+      '<br><br><button class="btn btn-primary btn-sm" id="retryBulkBtn">Try again</button></td></tr>';
+    document.getElementById('retryBulkBtn').addEventListener('click', loadBulkItems);
+    return;
+  }
+  _bulkItems = (d.items || []).slice().sort(function(a, b) { return codeNo(a.code) - codeNo(b.code); });
+  Object.keys(_bulkSel).forEach(function(c) {                                  // an item that is gone cannot stay selected
+    if (!_bulkItems.some(function(it) { return it.code === c; })) delete _bulkSel[c];
+  });
+  var cats = [];
+  _bulkItems.forEach(function(it) { if (it.category && cats.indexOf(it.category) < 0) cats.push(it.category); });
+  cats.sort();
+  var sel = document.getElementById('bulkCat'), keep = sel.value;
+  sel.innerHTML = '<option value="">All categories</option>' + cats.map(function(c) { return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('');
+  sel.value = cats.indexOf(keep) >= 0 ? keep : '';
+  renderBulk();
+}
+
+function bulkShown() {
+  var s = document.getElementById('bulkSearch').value.toLowerCase().trim();
+  var c = document.getElementById('bulkCat').value;
+  return _bulkItems.filter(function(it) {
+    return (!c || it.category === c) && (!s || (codeNo(it.code) + ' ' + it.name + ' ' + it.category).toLowerCase().indexOf(s) >= 0);
+  });
+}
+
+function renderBulk() {
+  var shown = bulkShown();
+  document.getElementById('bulkTbl').innerHTML = shown.length ? shown.map(function(it) {
+    var on = !!_bulkSel[it.code];
+    return '<tr data-code="' + esc(it.code) + '"' + (on ? ' class="sel"' : '') + '><td><input type="checkbox"' + (on ? ' checked' : '') + ' aria-label="' + esc(it.name) + '"></td>' +
+      '<td><code>' + esc(String(it.code).replace(/^[^0-9]*/, '') || it.code) + '</code></td>' +
+      '<td><strong>' + esc(it.name) + '</strong></td><td class="dim">' + esc(it.category) + '</td></tr>';
+  }).join('') : '<tr><td colspan="4" class="empty">' + (_bulkItems.length ? 'No items match.' : 'No items yet.') + '</td></tr>';
+  updateBulkFoot();
+}
+
+// the count, the box in the heading and the two Print buttons follow what is selected and shown
+function updateBulkFoot() {
+  var shown = bulkShown(), n = Object.keys(_bulkSel).length;
+  var shownTicked = shown.filter(function(it) { return _bulkSel[it.code]; }).length;
+  var head = document.getElementById('bulkHead');
+  head.checked = shown.length > 0 && shownTicked === shown.length;
+  head.indeterminate = shownTicked > 0 && shownTicked < shown.length;
+  document.getElementById('bulkCount').textContent = n + ' selected' + (n > shownTicked ? ' (' + (n - shownTicked) + ' of them hidden by the search or category)' : '') + ' · ' + shown.length + ' shown';
+  if (_bulkBusy) return;                                                       // the button that is working shows its progress
+  var selBtn = document.getElementById('bulkPrintSelBtn'), allBtn = document.getElementById('bulkPrintAllBtn');
+  var filtered = document.getElementById('bulkSearch').value.trim() !== '' || document.getElementById('bulkCat').value !== '';
+  selBtn.disabled = !n;
+  selBtn.textContent = n ? '🖨 Print ' + n + ' selected label' + (n === 1 ? '' : 's') : '🖨 Print selected';
+  allBtn.disabled = !shown.length;
+  allBtn.textContent = '🖨 Print all ' + shown.length + (filtered ? ' shown' : ' label' + (shown.length === 1 ? '' : 's'));
+}
+
+function bulkSetShown(on) {
+  bulkShown().forEach(function(it) { if (on) _bulkSel[it.code] = true; else delete _bulkSel[it.code]; });
+  renderBulk();
+}
+
+async function bulkPrint(items, btn) {
+  if (_bulkBusy) { toast('The labels are still being made…'); return; }
+  if (!items.length) return;
+  _bulkBusy = true;
+  document.getElementById('bulkPrintSelBtn').disabled = true;
+  document.getElementById('bulkPrintAllBtn').disabled = true;
+  var n = items.length;
+  await sendBagLabels(items.map(function(it) { return { itemCode: it.code, name: it.name, category: it.category || '' }; }), btn,
+                      { ok: n + ' item label' + (n === 1 ? '' : 's') + ' sent to BARCODE PRINTER as one PDF ✓' });
+  _bulkBusy = false;
+  updateBulkFoot();
 }
 
 // ── ADJUSTMENT ────────────────────────────────────────────────────
@@ -2377,6 +2499,26 @@ document.getElementById('printAllBagsBtn').addEventListener('click', function() 
   if (!_lblItem || !_lblBatches.length) return;
   sendBagLabels(_lblBatches.map(function(b) { return batchToLabel(b, _lblItem.name, _lblItem.mtype); }), this);
 });
+
+// Labels: item labels in bulk
+document.getElementById('bulkSearch').addEventListener('input', renderBulk);
+document.getElementById('bulkCat').addEventListener('change', renderBulk);
+document.getElementById('bulkAllBtn').addEventListener('click', function() { bulkSetShown(true); });
+document.getElementById('bulkNoneBtn').addEventListener('click', function() { _bulkSel = {}; renderBulk(); });
+document.getElementById('bulkHead').addEventListener('change', function() { bulkSetShown(this.checked); });
+document.getElementById('bulkTbl').addEventListener('click', function(e) {
+  var row = e.target.closest('tr[data-code]');
+  if (!row) return;
+  var code = row.dataset.code;
+  if (_bulkSel[code]) delete _bulkSel[code]; else _bulkSel[code] = true;     // a click anywhere on the row selects or clears it
+  row.classList.toggle('sel', !!_bulkSel[code]);
+  row.querySelector('input').checked = !!_bulkSel[code];                    // a click on the box itself ends up the same as a click on the row
+  updateBulkFoot();
+});
+document.getElementById('bulkPrintSelBtn').addEventListener('click', function() {
+  bulkPrint(_bulkItems.filter(function(it) { return _bulkSel[it.code]; }), this);
+});
+document.getElementById('bulkPrintAllBtn').addEventListener('click', function() { bulkPrint(bulkShown(), this); });
 
 // Adjustment
 document.getElementById('adj_code').addEventListener('keydown', function(e) { if (e.key === 'Enter') lookupAdj(); });
