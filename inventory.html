@@ -242,6 +242,7 @@ tr.item-detail:hover td{background:transparent}
 .tag{font-size:11px;background:var(--primary-light);color:var(--primary);padding:1px 6px;border-radius:4px;font-weight:600}
 code{font-family:monospace;font-size:12px;background:var(--surface2);padding:1px 5px;border-radius:3px;border:1px solid var(--border)}
 .dim{color:var(--txt2)}
+.nowrap{white-space:nowrap}
 .mono{font-family:monospace;font-variant-numeric:tabular-nums}
 .right{text-align:right}
 </style>
@@ -283,7 +284,7 @@ code{font-family:monospace;font-size:12px;background:var(--surface2);padding:1px
         </div>
       </div>
       <div class="kpi-row">
-        <div class="kpi-card success"><div class="kpi-label">Stock Value</div><div class="kpi-val money" id="kpiValue">—</div><div class="kpi-sub" id="kpiValueSub">Stock × price</div></div>
+        <div class="kpi-card success"><div class="kpi-label">Stock Value</div><div class="kpi-val money" id="kpiValue">—</div><div class="kpi-sub" id="kpiValueSub">Each delivery at its own price</div></div>
         <div class="kpi-card info"><div class="kpi-label">Total Items</div><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-sub">Active items</div></div>
         <div class="kpi-card"><div class="kpi-label">Qty Items</div><div class="kpi-val" id="kpiQty">—</div><div class="kpi-sub">Count-based</div></div>
         <div class="kpi-card"><div class="kpi-label">Weight Items</div><div class="kpi-val" id="kpiWt">—</div><div class="kpi-sub">Weight-based</div></div>
@@ -423,7 +424,7 @@ code{font-family:monospace;font-size:12px;background:var(--surface2);padding:1px
         </div>
         <div class="form-row">
           <div class="form-group"><label>Price per <span id="ei_priceUnit">pcs</span> (₹) <span style="font-weight:400;text-transform:none">(optional)</span></label><input id="ei_price" type="number" min="0" step="any" placeholder="e.g. 85"></div>
-          <div class="form-group"><label>&nbsp;</label><div class="dim" style="font-size:12.5px;line-height:1.45">What one unit costs. Leave it empty for none. It is used to show the value of the stock.</div></div>
+          <div class="form-group"><label>&nbsp;</label><div class="dim" style="font-size:12.5px;line-height:1.45" id="ei_price_hint">What one unit costs. Leave it empty for none. It is the price of stock that has no price of its own (opening stock, or a Stock In where no price was typed). <strong>To record a purchase at a new price, type it on the Stock In page:</strong> the stock you already have keeps its old price.</div></div>
         </div>
         <div class="form-row full" id="ei_conv_row" style="display:none">
           <div class="form-group">
@@ -476,6 +477,10 @@ code{font-family:monospace;font-size:12px;background:var(--surface2);padding:1px
           <div class="form-group"><label id="si_qty_label">Quantity *</label><input id="si_qty" type="number" min="0.001" step="any" placeholder="0"></div>
           <div class="form-group"><label>Supplier / Party</label><input id="si_party" placeholder="Supplier name"></div>
         </div>
+        <div class="form-row" style="margin-bottom:8px">
+          <div class="form-group"><label>Price of this delivery, per <span id="si_priceUnit">unit</span> (₹) <span style="font-weight:400;text-transform:none">(optional)</span></label><input id="si_price" type="number" min="0" step="any" placeholder="e.g. 120"></div>
+        </div>
+        <div class="dim" id="si_price_hint" style="font-size:12.5px;line-height:1.5;margin-bottom:14px"></div>
         <div class="form-row">
           <div class="form-group"><label>Reference / Challan No.</label><input id="si_ref" placeholder="DC/Challan/PO number"></div>
           <div class="form-group"><label>Recorded By</label><input id="si_user" placeholder="Your name"></div>
@@ -768,6 +773,7 @@ function setTab(tab) {
   if (tab === 'items')     loadItems();
   if (tab === 'addItem')   prepAddItem();
   if (tab === 'labels')    loadBulkItems();
+  if (tab === 'stockin')   refreshSIItem();      // stock or prices may have changed on another page since the item was looked up
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────
@@ -785,8 +791,8 @@ function _renderDashboard(data) {
   var unpriced = data.unpricedItems || 0;                      // items that hold stock but have no price: not in the value
   document.getElementById('kpiValue').textContent    = data.stockValue > 0 ? inr(data.stockValue, 2) : (unpriced ? '—' : inr(0, 0));
   document.getElementById('kpiValueSub').textContent = unpriced
-    ? unpriced + ' item' + (unpriced === 1 ? '' : 's') + ' with stock ' + (unpriced === 1 ? 'has' : 'have') + ' no price yet'
-    : 'Stock × price';
+    ? unpriced + ' item' + (unpriced === 1 ? '' : 's') + ' hold' + (unpriced === 1 ? 's' : '') + ' stock with no price yet'
+    : 'Each delivery at its own price';
   document.getElementById('kpiTotal').textContent    = data.total;
   document.getElementById('kpiQty').textContent      = data.qtyItems;
   document.getElementById('kpiWt').textContent       = data.wtItems;
@@ -876,7 +882,7 @@ var _allItems = [];
 async function loadItems() {
   var tbody = document.getElementById('itemsTbl');
   tbody.innerHTML = '<tr><td colspan="12" class="empty">Loading…</td></tr>';
-  var d = await api({api:'getItems', status:'ALL'});
+  var d = await api({api:'getItems', status:'ALL', values:'1'});          // values: also what each item's stock is worth, from its deliveries' prices
   if (d.error) {
     var notSetUp = /not initialized/i.test(d.error);       // only then is Initialize the right button; otherwise just try again
     tbody.innerHTML = '<tr><td colspan="12" class="empty" style="color:var(--danger)">' + esc(d.error) + '<br><br>' +
@@ -905,28 +911,52 @@ function pcsCell(it) {
 // Rupees in Indian digit grouping (₹ 4,46,837.5). maxFrac: how many decimals to show at most. Values use 2, so the rows add up to the total.
 function inr(n, maxFrac) { return '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: maxFrac }); }
 
-// The price of one unit of an item and what its stock is worth (stock × price). Empty when the item has no price yet.
+// What the stock of an item is made of, for the tooltip: "100 pcs at ₹ 120 · 25 pcs at ₹ 100".
+function lotsTip(it) { return lotsText(it.lots, String(it.uom).toLowerCase()); }
+
+// The price of the stock of an item and what it is worth. The server works the value out exactly: every delivery at its own
+// price, so a price that changed over time shows as a range, and the tooltip says which stock is at which price.
+// Empty when the item holds stock with no price at all.
 function priceCells(it) {
-  var price = parseFloat(it.price) || 0;
-  if (!(price > 0)) return '<td></td><td></td>';
-  var stock = parseFloat(it.current) || 0;
-  return '<td class="right mono" title="' + esc(inr(price, 4) + ' per ' + String(it.uom).toLowerCase()) + '">' + inr(price, 2) + '</td>' +
-         '<td class="right mono"><strong>' + inr(stock * price, 2) + '</strong></td>';
+  var stock = parseFloat(it.current) || 0, unit = String(it.uom).toLowerCase(), p0 = parseFloat(it.price) || 0;
+  var lots = it.lots;
+  var value = lots ? (parseFloat(it.value) || 0) : stock * p0;                  // older answers without the exact figures: stock × price
+  if (!lots) lots = p0 > 0 && stock > 0 ? [{ qty: stock, price: p0 }] : [];
+  var priced = lots.filter(function(l) { return l.price > 0 && l.qty > 0; });
+  if (!priced.length) {                                                          // nothing priced is held: the item's own price, if it has one
+    return p0 > 0 ? '<td class="right mono nowrap" title="' + esc(inr(p0, 4) + ' per ' + unit) + '">' + inr(p0, 2) + '</td><td class="right mono nowrap"><strong>' + inr(0, 2) + '</strong></td>'
+                  : '<td></td><td></td>';
+  }
+  var lo = Math.min.apply(null, priced.map(function(l) { return l.price; })), hi = Math.max.apply(null, priced.map(function(l) { return l.price; }));
+  var rate = lo === hi ? inr(lo, 2) : inr(lo, 2) + '–' + hi.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  var tip = lo === hi && !(it.unpriced > 0) ? inr(lo, 4) + ' per ' + unit : lotsTip({ lots: lots, uom: it.uom });
+  var warn = it.unpriced > 0 ? ' <span style="color:var(--warn);cursor:help" title="' + esc(eeNum(it.unpriced) + ' ' + unit + ' have no price, so they are not counted') + '">⚠</span>' : '';
+  return '<td class="right mono nowrap" title="' + esc(tip) + '">' + rate + '</td>' +
+         '<td class="right mono nowrap" title="' + esc(tip) + '"><strong>' + inr(value, 2) + '</strong>' + warn + '</td>';
 }
 
 // "Stock value of the 31 items shown: ₹ …", above the table; follows the search and category filters.
 function renderItemsValue(items) {
   var box = document.getElementById('itemsValue'), total = 0, priced = 0, unpriced = 0;
   items.forEach(function(it) {
-    var stock = parseFloat(it.current) || 0, price = parseFloat(it.price) || 0;
-    if (stock > 0) { if (price > 0) { total += stock * price; priced++; } else unpriced++; }
+    var stock = parseFloat(it.current) || 0;
+    if (!(stock > 0)) return;
+    if (it.lots) {                                                               // exact figures from the server
+      var v = parseFloat(it.value) || 0;
+      total += v;
+      if (v > 0) priced++;
+      if ((parseFloat(it.unpriced) || 0) > 0) unpriced++;
+    } else {
+      var price = parseFloat(it.price) || 0;
+      if (price > 0) { total += stock * price; priced++; } else unpriced++;
+    }
   });
   box.style.display = items.length ? '' : 'none';
   if (!priced && !unpriced) { box.innerHTML = 'Stock value of the ' + items.length + ' item' + (items.length === 1 ? '' : 's') + ' shown: <strong>' + inr(0, 0) + '</strong>'; return; }
   box.innerHTML = priced
-    ? 'Stock value of the ' + items.length + ' item' + (items.length === 1 ? '' : 's') + ' shown: <strong>' + inr(total, 2) + '</strong>' +
-      (unpriced ? ' · ' + unpriced + ' item' + (unpriced === 1 ? ' holds' : 's hold') + ' stock but ' + (unpriced === 1 ? 'has' : 'have') + ' no price yet, so ' + (unpriced === 1 ? 'it is' : 'they are') + ' not counted' : '')
-    : 'No price entered yet. Open Edit on an item and type its price: the value of the stock then shows here.';
+    ? 'Stock value of the ' + items.length + ' item' + (items.length === 1 ? '' : 's') + ' shown: <strong>' + inr(total, 2) + '</strong>, each delivery at its own price' +
+      (unpriced ? ' · ' + unpriced + ' item' + (unpriced === 1 ? ' holds' : 's hold') + ' stock that has no price yet, which is not counted (⚠)' : '')
+    : 'No price entered yet. Type the price on a Stock In (or in Edit on an item): the value of the stock then shows here.';
 }
 
 function renderItems(items) {
@@ -1083,17 +1113,23 @@ function renderTypeNote() {
     h += '<br>The price stays as the number <strong>' + esc(inr(o.price, 4)) + '</strong>: it was per ' + o.uom.toLowerCase() + ' and will now mean per ' + typeUnit(to).toLowerCase() +
          '. Check the Price box below and change it if it should be different.';
   }
+  if (o.lotPrices) {                                            // the prices typed on Stock Ins are numbers too
+    h += '<br>The prices recorded with the deliveries stay as numbers too (per ' + o.uom.toLowerCase() + ' before, per ' + typeUnit(to).toLowerCase() +
+         ' after). If they should be different, correct them with Edit on each Stock In.';
+  }
   document.getElementById('ei_type_text').innerHTML = h;
   document.getElementById('ei_type_ok_row').style.display = holds ? '' : 'none';
 }
 
 async function editItem(code) {
-  var d = await api({api:'getItem', code:code});
+  var d = await api({api:'getItem', code:code, withValue:'1'});           // withValue: how much stock follows the item's price, and which prices are on record
   if (d.error) { toast(d.error); return; }
   var it = d.item;
   document.getElementById('ei_code').textContent = it.code;
   document.getElementById('ei_badge').innerHTML = itemTypeBadge(it);
-  _eiOrig = { code: it.code, mtype: it.mtype, uom: it.uom, current: parseFloat(it.current) || 0, price: parseFloat(it.price) || 0 };
+  _eiOrig = { code: it.code, mtype: it.mtype, uom: it.uom, current: parseFloat(it.current) || 0, price: parseFloat(it.price) || 0,
+              atItemPrice: parseFloat(it.atItemPrice) || 0,                // stock with no price of its own: it follows this price
+              lotPrices: (it.lots || []).some(function(l) { return l.price > 0 && l.price !== (parseFloat(it.price) || 0); }) };   // deliveries with a price of their own
   _eiBags = null;
   document.getElementById('ei_mtype').value = it.mtype;
   document.getElementById('ei_type_note').style.display = 'none';
@@ -1134,6 +1170,15 @@ async function submitEditItem() {
     showResult('editItemResult', false, 'The price must be a number, 0 or more.');
     return;
   }
+  // Stock that has no price of its own follows this price. Changing it re-values that stock, so say so first: someone who bought
+  // NEW stock at a new price should put that price on the Stock In instead, which leaves the old stock at its old price.
+  if (_eiOrig && _eiOrig.code === code && _eiOrig.price > 0 && _eiOrig.atItemPrice > 0 && (Number(p.price) || 0) !== _eiOrig.price) {
+    var uTxt = String(_eiOrig.uom || 'pcs').toLowerCase();
+    if (!confirm('The ' + eeNum(_eiOrig.atItemPrice) + ' ' + uTxt + ' in stock that came in without a price of their own are valued at this price (' + inr(_eiOrig.price, 4) + ' per ' + uTxt + '). ' +
+                 'Changing it to ' + ((Number(p.price) || 0) > 0 ? inr(Number(p.price), 4) : 'no price') + ' re-values those ' + eeNum(_eiOrig.atItemPrice) + ' ' + uTxt + '.\n\n' +
+                 'If you BOUGHT new stock at the new price, press Cancel and type the new price on the Stock In page: the stock you already have then keeps its old price.\n\n' +
+                 'Change the price of the item anyway?')) return;
+  }
   if (document.getElementById('ei_conv_row').style.display !== 'none') {       // weighed items: both boxes empty clears the reference
     p.convWeight = document.getElementById('ei_convW').value;
     p.convPcs    = document.getElementById('ei_convP').value;
@@ -1171,7 +1216,7 @@ async function submitEditItem() {
     document.getElementById('ei_type_ok').checked = false;
   }
   var d = await api(p);
-  if (d.ok && _eiOrig && _eiOrig.code === code) _eiOrig.price = Number(p.price) || 0;
+  if (d.ok && _eiOrig && _eiOrig.code === code) _eiOrig.price = Number(p.price) || 0;     // (stock that follows it stays the same stock)
   if (d.ok) { showResult('editItemResult', true, typeChanged ? 'Changes saved. This item is now ' + typeLabel(newType) + '.' : 'Changes saved.'); toast('Item updated ✓'); }
   else       { showResult('editItemResult', false, (typeChanged ? 'The type was changed, but the other changes were not saved: ' : '') + esc(d.error || 'Update failed.')); }
 }
@@ -1303,7 +1348,7 @@ async function lookupSI() {
   var code = r.code.toUpperCase();
   if (!code) return;
   document.getElementById('si_code').value = code;
-  var d   = await api({api:'getItem', code:code});
+  var d   = await api({api:'getItem', code:code, withValue:'1'});          // withValue: also what the stock is worth, and the prices it is made of
   var box = document.getElementById('si_lookup');
   if (d.error) { box.classList.remove('show'); document.getElementById('si_bag_section').style.display='none'; toast(d.error); return; }
   document.getElementById('si_print_bags_btn').style.display = 'none'; _pendingBagPrint = null;
@@ -1322,13 +1367,66 @@ async function lookupSI() {
   document.getElementById('si_bag_section').style.display = '';
   document.getElementById('si_each_box').style.display = isWt ? 'none' : '';
   document.getElementById('si_bag_unit').textContent = siUnit();
-  if (prevCode !== it.code) resetSIBags();      // another item: start the bag fields afresh (looking up the same item again keeps them)
+  document.getElementById('si_priceUnit').textContent = siUnit();
+  if (prevCode !== it.code) {
+    resetSIBags();      // another item: start the bag fields afresh (looking up the same item again keeps them)
+    document.getElementById('si_price').value = it.lastPrice > 0 ? it.lastPrice : '';      // and suggest the price paid last time
+  }
+  renderSIPrice();
   box.classList.add('show');
 }
 
 // What the bag rows count: kg for weighed material, the item's own unit (pcs …) for counted items.
 var _siItem = null;
 function siUnit() { return !_siItem || _siItem.mtype === 'WEIGHT' ? 'kg' : String(_siItem.uom || 'pcs').toLowerCase(); }
+
+// "100 pcs at ₹ 120 · 25 pcs at ₹ 100": what the stock of an item is made of, newest delivery first (from the server).
+function lotsText(lots, unit) {
+  var parts = (lots || []).slice(0, 5).map(function(l) {
+    return eeNum(l.qty) + ' ' + unit + (l.price > 0 ? ' at ' + inr(l.price, 4) : ' with no price');
+  });
+  if ((lots || []).length > 5) parts.push('…');
+  return parts.join(' · ');
+}
+
+// The hint beside the price box: what the stock is worth now, and what it will be worth after this delivery.
+// Every delivery keeps its own price, so the stock already in the factory is not touched by the price typed here.
+function renderSIPrice() {
+  var box = document.getElementById('si_price_hint');
+  var it = _siItem;
+  if (!it) { box.textContent = 'What you paid for this delivery, per unit. It stays with the delivery: stock you already have keeps its own price.'; return; }
+  var unit = siUnit(), cur = parseFloat(it.current) || 0, value = parseFloat(it.value);
+  var priceText = document.getElementById('si_price').value.trim(), price = Number(priceText);
+  var qty = parseFloat(document.getElementById('si_qty').value) || 0;
+  var h = '';
+  if (isNaN(value)) h += 'Checking what the stock is worth…';
+  else if (cur > 0) {
+    h += 'In stock now: <strong>' + eeNum(cur) + ' ' + esc(unit) + '</strong>' + (value > 0 ? ', worth <strong>' + inr(value, 2) + '</strong>' : ', with no price yet') +
+         (it.lots && it.lots.length ? '<div>' + esc(lotsText(it.lots, unit)) + '</div>' : '');
+  } else h += 'Nothing in stock now.';
+  if (priceText !== '' && !(price >= 0)) {
+    h += '<div style="color:var(--danger)">The price must be a number, 0 or more.</div>';
+  } else if (price > 0) {
+    h += '<div>This delivery is kept at <strong>' + inr(price, 4) + '</strong> per ' + esc(unit) +
+         (qty > 0 ? ': ' + eeNum(qty) + ' × ' + inr(price, 4) + ' = <strong>' + inr(qty * price, 2) + '</strong>' +
+                    (isNaN(value) ? '' : '. Stock worth <strong>' + inr(value + qty * price, 2) + '</strong> after it') : '') + '.</div>';
+  } else {
+    h += '<div>No price typed: this delivery counts at the item\'s own price' +
+         (it.price > 0 ? ' (' + inr(it.price, 4) + ' per ' + esc(unit) + ')' : ', which is not set, so it is left out of the stock value') + '.</div>';
+  }
+  box.innerHTML = h;
+}
+
+// Fetches the item again, so the stock figure and its value are right after a save, or when the page is opened again.
+async function refreshSIItem() {
+  if (!_siItem) return;
+  var code = _siItem.code;
+  var d = await api({api:'getItem', code:code, withValue:'1'});
+  if (d.error || !_siItem || _siItem.code !== code) return;
+  _siItem = d.item;
+  document.getElementById('si_curstock').textContent = d.item.current;
+  renderSIPrice();
+}
 
 function resetSIBags() {
   document.getElementById('si_use_bags').checked = false;
@@ -1349,6 +1447,9 @@ async function submitStockIn() {
   var payload = { api:'stockIn', code:code, party:party, ref:ref,
     user:    document.getElementById('si_user').value.trim(),
     remarks: document.getElementById('si_remarks').value.trim() };
+  var priceText = document.getElementById('si_price').value.trim();        // the price of THIS delivery; empty = none typed
+  if (priceText !== '' && !(Number(priceText) >= 0)) { showResult('si_result', false, 'The price must be a number, 0 or more.'); return; }
+  payload.price = priceText;
 
   var bagWeightsArr = [];
   if (useBags) {
@@ -1370,7 +1471,13 @@ async function submitStockIn() {
   var d = await api(payload);
   if (d.ok) {
     var bagInfo = d.bagCount > 1 ? ' | ' + d.bagCount + ' bags created' : (d.bagIds && d.bagIds[0] ? ' | Bag: ' + d.bagIds[0].replace(/^[^0-9]*/, '') : '');
-    showResult('si_result', true, 'Stock In recorded. Txn: ' + d.txnId + bagInfo + '\nNew balance: ' + d.closing + ' ' + d.uom);
+    var gotQty = parseFloat(payload.qty) || 0;
+    var priceInfo = d.price
+      ? '\nPrice kept with this delivery: ' + inr(d.price, 4) + ' per ' + siUnit() + ' (' + inr(gotQty * d.price, 2) + '). Stock already here keeps its own price.'
+      : (_siItem && _siItem.price > 0
+          ? '\nNo price was typed, so this delivery counts at the item\'s own price (' + inr(_siItem.price, 4) + ' per ' + siUnit() + ').'
+          : '\nNo price was typed and the item has none, so this delivery is left out of the stock value.');
+    showResult('si_result', true, 'Stock In recorded. Txn: ' + d.txnId + bagInfo + '\nNew balance: ' + d.closing + ' ' + d.uom + priceInfo);
     toast('Stock In saved ✓');
     ['si_qty','si_party','si_ref','si_remarks','si_bag_count','si_bag_each'].forEach(function(id) {
       var el = document.getElementById(id); if (el) el.value = '';
@@ -1378,6 +1485,9 @@ async function submitStockIn() {
     document.getElementById('si_bag_rows').innerHTML = '';
     document.getElementById('si_bag_total').textContent = '—';
     document.getElementById('si_curstock').textContent = d.closing;
+    if (_siItem) { _siItem.current = d.closing; _siItem.value = NaN; if (d.price) _siItem.lastPrice = d.price; }   // the value is fetched again just below
+    renderSIPrice();
+    refreshSIItem();
     if (d.bagIds && d.bagIds.length) {
       _pendingBagPrint = { ids: d.bagIds, weights: useBags ? bagWeightsArr : [parseFloat(payload.qty)],
                            name: d.itemName, uom: d.uom, party: party, ref: ref, mtype: _siItem ? _siItem.mtype : 'WEIGHT' };
@@ -1529,7 +1639,8 @@ async function loadLedger() {
       '<td><strong>' + esc(r.itemName) + '</strong><br><code style="font-size:10px">' + r.itemCode + '</code>' +
         (r.remarks ? '<div class="dim" style="font-size:11px;max-width:240px;white-space:normal">' + esc(r.remarks) + '</div>' : '') + '</td>' +
       '<td class="dim" style="font-size:11.5px">' + (r.batchId || '—') + '</td>' +
-      '<td class="right mono" style="color:var(--success)">' + (r.in > 0 ? '+' + r.in : '—') + '</td>' +
+      '<td class="right mono" style="color:var(--success)">' + (r.in > 0 ? '+' + r.in : '—') +
+        (r.type === 'STOCK_IN' && r.price > 0 ? '<div class="dim" style="font-size:10.5px;font-weight:400" title="Price paid per unit for this delivery">at ' + inr(r.price, 4) + '</div>' : '') + '</td>' +
       '<td class="right mono" style="color:var(--danger)">' + (r.out > 0 ? '-' + r.out : '—') + '</td>' +
       '<td class="right mono"><strong>' + r.closing + '</strong></td>' +
       '<td class="dim">' + r.uom + '</td>' +
@@ -1950,6 +2061,15 @@ function renderEditEntry() {
          '<div class="form-group"><label>' + (isIn ? 'Reference / Challan No.' : 'Reference / Job No.') + '</label><input id="ee_ref" value="' + esc(e.ref) + '"></div>' +
        '</div>';
 
+  if (isIn) {                                                    // what was paid per unit for this delivery: the stock value is worked out from it
+    var pUnit = esc(_ee.item && _ee.item.mtype === 'WEIGHT' ? 'kg' : String(uom).toLowerCase());
+    h += '<div class="form-row">' +
+           '<div class="form-group"><label>Price per ' + pUnit + ' (₹) <span class="dim" style="font-weight:400;text-transform:none">(optional)</span></label>' +
+             '<input id="ee_price" type="number" min="0" step="any" placeholder="no price" value="' + (e.price > 0 ? esc(String(e.price)) : '') + '"></div>' +
+           '<div class="form-group"><label>&nbsp;</label><div class="dim" style="font-size:12.5px;line-height:1.45">What was paid for this delivery. The value of the stock is worked out from it. Empty = no price: it then counts at the item\'s own price.</div></div>' +
+         '</div>';
+  }
+
   if (isIn && _ee.bags.length) {
     var counted = _ee.item && _ee.item.mtype !== 'WEIGHT';       // bags of counted pieces hold a quantity, not a weight
     h += '<div class="card-title" style="margin:4px 0 8px">Bags: change ' + (counted ? 'a quantity' : 'a weight') + ', or remove a bag entered by mistake</div>' +
@@ -2009,6 +2129,11 @@ async function saveEditEntry() {
   if (!user) { showResult('ee_result', false, 'Enter your name.'); return; }
   var p = { api:'editEntry', txnId:e.id, user:user, reason:eeVal('ee_reason'),
             party:eeVal('ee_party'), ref:eeVal('ee_ref'), remarks:eeVal('ee_remarks') };
+  var priceBox = document.getElementById('ee_price');
+  if (priceBox) {                                              // a Stock In: the server ignores it when it is the price already there
+    if (priceBox.value.trim() !== '' && !(Number(priceBox.value) >= 0)) { showResult('ee_result', false, 'The price must be a number, 0 or more.'); return; }
+    p.price = priceBox.value.trim();
+  }
 
   var bagRows = document.querySelectorAll('#ee_bags tr[data-id]');
   if (bagRows.length) {
@@ -2142,6 +2267,7 @@ function ipListHtml(code) {
          (g.time ? ' · ' + esc(g.time) : '') + (g.user ? ' · by ' + esc(g.user) : '') +
          (g.note ? ' <span title="' + esc(g.note) + '" style="cursor:help">✎</span>' : '') +
          '<div class="dim">' + n + ' bag' + (n === 1 ? '' : 's') + ' · ' + eeNum(g.total) + ' ' + uom +
+         (g.price > 0 ? ' · at ' + inr(g.price, 4) + ' per ' + uom.toLowerCase() : '') +
          (g.party ? ' · ' + esc(g.party) : '') + (g.ref ? ' · Ref ' + esc(g.ref) : '') + (g.remarks ? ' · ' + esc(g.remarks) : '') + '</div></div>' +
          '<div class="ip-gact">' +
            (g.bags.some(function(b) { return b.current > 0; })
@@ -2179,7 +2305,8 @@ function ipListHtml(code) {
         return '<tr><td><code style="font-size:11px">' + esc(e.id) + '</code>' + (e.note ? ' <span title="' + esc(e.note) + '" style="cursor:help">✎</span>' : '') + '</td>' +
           '<td class="dim" style="font-size:11.5px;white-space:nowrap">' + esc(e.time) + '</td>' +
           '<td>' + typeBadge(e.type) + '</td>' +
-          '<td class="right mono" style="color:var(--' + (isIn ? 'success' : 'danger') + ')">' + (isIn ? '+' : '-') + eeNum(e.qty) + ' ' + esc(e.uom) + '</td>' +
+          '<td class="right mono" style="color:var(--' + (isIn ? 'success' : 'danger') + ')">' + (isIn ? '+' : '-') + eeNum(e.qty) + ' ' + esc(e.uom) +
+            (isIn && e.price > 0 ? '<div class="dim" style="font-size:10.5px">at ' + inr(e.price, 4) + '</div>' : '') + '</td>' +
           '<td class="dim">' + (e.bagId.indexOf('BCH-') === 0 ? esc(bagNoOf(e.bagId)) : '—') + '</td>' +
           '<td class="dim">' + esc([e.party, e.ref].filter(Boolean).join(' · ')) + '</td>' +
           '<td class="dim">' + esc(e.user) + '</td>' +
@@ -2597,7 +2724,11 @@ document.getElementById('si_use_bags').addEventListener('change', function() {
     document.getElementById('si_bag_total').textContent = '—';
     document.getElementById('si_qty').value = '';
   }
+  renderSIPrice();
 });
+// the hint beside the price follows the quantity and the price as they are typed
+document.getElementById('si_qty').addEventListener('input', renderSIPrice);
+document.getElementById('si_price').addEventListener('input', renderSIPrice);
 function calcBagTotal() {
   var inputs = document.getElementById('si_bag_rows').querySelectorAll('.bag-wt-input');
   var sum = 0;
@@ -2606,11 +2737,12 @@ function calcBagTotal() {
   var shown = Math.round(sum * 1000) / 1000;
   document.getElementById('si_bag_total').textContent = sum > 0 ? (counted ? String(shown) : sum.toFixed(2)) : '—';
   document.getElementById('si_qty').value = sum > 0 ? (counted ? String(shown) : sum.toFixed(3)) : '';
+  renderSIPrice();
 }
 function rebuildBagRows() {
   var bc = parseInt(document.getElementById('si_bag_count').value) || 0;
   var container = document.getElementById('si_bag_rows');
-  if (bc < 1 || bc > 50) { container.innerHTML = ''; document.getElementById('si_bag_total').textContent = '—'; document.getElementById('si_qty').value = ''; return; }
+  if (bc < 1 || bc > 50) { container.innerHTML = ''; document.getElementById('si_bag_total').textContent = '—'; document.getElementById('si_qty').value = ''; renderSIPrice(); return; }
   var existing = Array.from(container.querySelectorAll('.bag-wt-input')).map(function(el) { return el.value; });
   var each = document.getElementById('si_bag_each').value;      // new rows start with the "same in every bag" figure, if one was typed
   var unit = esc(siUnit());
