@@ -85,6 +85,9 @@ main{flex:1;overflow-y:auto;padding:16px 20px 24px}
 .kpi-card.danger .kpi-val{color:var(--danger)}
 .kpi-card.success .kpi-val{color:var(--success)}
 .kpi-card.info .kpi-val{color:var(--info)}
+.kpi-val.money{font-size:22px;line-height:1.25;overflow-wrap:anywhere}
+.items-value{font-size:13px;color:var(--txt2);margin:0 0 10px}
+.items-value strong{color:var(--txt);font-size:15px}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow:hidden}
 .card-head{padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
 .card-title{font-size:13.5px;font-weight:600;color:var(--txt)}
@@ -280,6 +283,7 @@ code{font-family:monospace;font-size:12px;background:var(--surface2);padding:1px
         </div>
       </div>
       <div class="kpi-row">
+        <div class="kpi-card success"><div class="kpi-label">Stock Value</div><div class="kpi-val money" id="kpiValue">—</div><div class="kpi-sub" id="kpiValueSub">Stock × price</div></div>
         <div class="kpi-card info"><div class="kpi-label">Total Items</div><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-sub">Active items</div></div>
         <div class="kpi-card"><div class="kpi-label">Qty Items</div><div class="kpi-val" id="kpiQty">—</div><div class="kpi-sub">Count-based</div></div>
         <div class="kpi-card"><div class="kpi-label">Weight Items</div><div class="kpi-val" id="kpiWt">—</div><div class="kpi-sub">Weight-based</div></div>
@@ -312,10 +316,11 @@ code{font-family:monospace;font-size:12px;background:var(--surface2);padding:1px
         <select id="itemMtypeFilter"><option value="">All Types</option><option value="QUANTITY">Quantity</option><option value="WEIGHT">Weight</option></select>
         <button class="btn btn-primary btn-sm" id="addItemNavBtn">+ Add Item</button>
       </div>
+      <div id="itemsValue" class="items-value" style="display:none"></div>
       <div class="card">
         <div class="tbl-wrap"><table>
-          <thead><tr><th>Code</th><th>Item Name</th><th>Category</th><th>Type</th><th class="right">Current Stock</th><th>UOM</th><th class="right" title="About how many pieces the weight in stock is, from the pieces reference set on the item. For your reference only.">≈ Pcs</th><th>Location</th><th>Status</th><th></th></tr></thead>
-          <tbody id="itemsTbl"><tr><td colspan="10" class="empty">—</td></tr></tbody>
+          <thead><tr><th>Code</th><th>Item Name</th><th>Category</th><th>Type</th><th class="right">Current Stock</th><th>UOM</th><th class="right" title="About how many pieces the weight in stock is, from the pieces reference set on the item. For your reference only.">≈ Pcs</th><th class="right" title="The price of one unit (one kg, or one piece for counted items), set on the item">Rate</th><th class="right" title="Current stock × rate">Value</th><th>Location</th><th>Status</th><th></th></tr></thead>
+          <tbody id="itemsTbl"><tr><td colspan="12" class="empty">—</td></tr></tbody>
         </table></div>
       </div>
     </div>
@@ -352,6 +357,10 @@ code{font-family:monospace;font-size:12px;background:var(--surface2);padding:1px
         <div class="form-row">
           <div class="form-group"><label>Opening Stock</label><input id="ai_opening" type="number" min="0" step="any" placeholder="0"></div>
           <div class="form-group"><label>Min Stock Level</label><input id="ai_minStock" type="number" min="0" step="any" placeholder="0 (alert threshold)"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Price per <span id="ai_priceUnit">pcs</span> (₹) <span style="font-weight:400;text-transform:none">(optional)</span></label><input id="ai_price" type="number" min="0" step="any" placeholder="e.g. 85"></div>
+          <div class="form-group"><label>&nbsp;</label><div class="dim" style="font-size:12.5px;line-height:1.45">What one unit costs. It is used to show the value of the stock.</div></div>
         </div>
         <div class="form-row">
           <div class="form-group"><label>Storage Location</label><input id="ai_location" placeholder="e.g. Rack A3"></div>
@@ -411,6 +420,10 @@ code{font-family:monospace;font-size:12px;background:var(--surface2);padding:1px
           <div class="form-group"><label>Status</label>
             <select id="ei_status"><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select>
           </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Price per <span id="ei_priceUnit">pcs</span> (₹) <span style="font-weight:400;text-transform:none">(optional)</span></label><input id="ei_price" type="number" min="0" step="any" placeholder="e.g. 85"></div>
+          <div class="form-group"><label>&nbsp;</label><div class="dim" style="font-size:12.5px;line-height:1.45">What one unit costs. Leave it empty for none. It is used to show the value of the stock.</div></div>
         </div>
         <div class="form-row full" id="ei_conv_row" style="display:none">
           <div class="form-group">
@@ -769,6 +782,11 @@ function toast(msg, type, dur) {
 // ── DASHBOARD ─────────────────────────────────────────────────────
 function _renderDashboard(data) {
   document.getElementById('dashSetupAlert').style.display = 'none';
+  var unpriced = data.unpricedItems || 0;                      // items that hold stock but have no price: not in the value
+  document.getElementById('kpiValue').textContent    = data.stockValue > 0 ? inr(data.stockValue, 2) : (unpriced ? '—' : inr(0, 0));
+  document.getElementById('kpiValueSub').textContent = unpriced
+    ? unpriced + ' item' + (unpriced === 1 ? '' : 's') + ' with stock ' + (unpriced === 1 ? 'has' : 'have') + ' no price yet'
+    : 'Stock × price';
   document.getElementById('kpiTotal').textContent    = data.total;
   document.getElementById('kpiQty').textContent      = data.qtyItems;
   document.getElementById('kpiWt').textContent       = data.wtItems;
@@ -857,11 +875,11 @@ var _allItems = [];
 
 async function loadItems() {
   var tbody = document.getElementById('itemsTbl');
-  tbody.innerHTML = '<tr><td colspan="10" class="empty">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="12" class="empty">Loading…</td></tr>';
   var d = await api({api:'getItems', status:'ALL'});
   if (d.error) {
     var notSetUp = /not initialized/i.test(d.error);       // only then is Initialize the right button; otherwise just try again
-    tbody.innerHTML = '<tr><td colspan="10" class="empty" style="color:var(--danger)">' + esc(d.error) + '<br><br>' +
+    tbody.innerHTML = '<tr><td colspan="12" class="empty" style="color:var(--danger)">' + esc(d.error) + '<br><br>' +
       (notSetUp ? '<button class="btn btn-primary btn-sm" id="inlineSetupBtn">Initialize Database</button>'
                 : '<button class="btn btn-primary btn-sm" id="retryItemsBtn">Try again</button>') + '</td></tr>';
     var inlineBtn = document.getElementById('inlineSetupBtn');
@@ -884,10 +902,38 @@ function pcsCell(it) {
   return '<td class="right mono" title="' + esc(eeNum(w) + ' ' + String(it.uom).toLowerCase() + ' = ' + eeNum(n) + ' pcs') + '">≈ ' + pcs.toLocaleString('en-IN') + '</td>';
 }
 
+// Rupees in Indian digit grouping (₹ 4,46,837.5). maxFrac: how many decimals to show at most. Values use 2, so the rows add up to the total.
+function inr(n, maxFrac) { return '₹ ' + (Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: maxFrac }); }
+
+// The price of one unit of an item and what its stock is worth (stock × price). Empty when the item has no price yet.
+function priceCells(it) {
+  var price = parseFloat(it.price) || 0;
+  if (!(price > 0)) return '<td></td><td></td>';
+  var stock = parseFloat(it.current) || 0;
+  return '<td class="right mono" title="' + esc(inr(price, 4) + ' per ' + String(it.uom).toLowerCase()) + '">' + inr(price, 2) + '</td>' +
+         '<td class="right mono"><strong>' + inr(stock * price, 2) + '</strong></td>';
+}
+
+// "Stock value of the 31 items shown: ₹ …", above the table; follows the search and category filters.
+function renderItemsValue(items) {
+  var box = document.getElementById('itemsValue'), total = 0, priced = 0, unpriced = 0;
+  items.forEach(function(it) {
+    var stock = parseFloat(it.current) || 0, price = parseFloat(it.price) || 0;
+    if (stock > 0) { if (price > 0) { total += stock * price; priced++; } else unpriced++; }
+  });
+  box.style.display = items.length ? '' : 'none';
+  if (!priced && !unpriced) { box.innerHTML = 'Stock value of the ' + items.length + ' item' + (items.length === 1 ? '' : 's') + ' shown: <strong>' + inr(0, 0) + '</strong>'; return; }
+  box.innerHTML = priced
+    ? 'Stock value of the ' + items.length + ' item' + (items.length === 1 ? '' : 's') + ' shown: <strong>' + inr(total, 2) + '</strong>' +
+      (unpriced ? ' · ' + unpriced + ' item' + (unpriced === 1 ? ' holds' : 's hold') + ' stock but ' + (unpriced === 1 ? 'has' : 'have') + ' no price yet, so ' + (unpriced === 1 ? 'it is' : 'they are') + ' not counted' : '')
+    : 'No price entered yet. Open Edit on an item and type its price: the value of the stock then shows here.';
+}
+
 function renderItems(items) {
   var tbody = document.getElementById('itemsTbl');
+  renderItemsValue(items);
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="10" class="empty">No items found. <button class="btn btn-primary btn-sm" id="firstItemBtn">Add First Item</button></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="empty">No items found. <button class="btn btn-primary btn-sm" id="firstItemBtn">Add First Item</button></td></tr>';
     var btn = document.getElementById('firstItemBtn');
     if (btn) btn.addEventListener('click', function() { setTab('addItem'); });
     return;
@@ -905,6 +951,7 @@ function renderItems(items) {
       '<td class="right mono" style="' + stockColor + '"><strong>' + it.current + '</strong></td>' +
       '<td class="dim">' + it.uom + '</td>' +
       pcsCell(it) +
+      priceCells(it) +
       '<td class="dim">' + esc(it.location) + '</td>' +
       '<td><span class="badge ' + (it.status === 'ACTIVE' ? 'badge-active' : 'badge-inactive') + '">' + it.status + '</span></td>' +
       '<td class="item-acts"><button class="btn btn-ghost btn-sm bags-btn" data-code="' + esc(it.code) + '" aria-expanded="' + open + '">' +
@@ -948,7 +995,7 @@ async function loadCatOptions() {
 
 // ── ADD ITEM ──────────────────────────────────────────────────────
 function prepAddItem() {
-  ['ai_name','ai_cat','ai_desc','ai_opening','ai_minStock','ai_location','ai_supplier','ai_convW','ai_convP'].forEach(function(id) {
+  ['ai_name','ai_cat','ai_desc','ai_opening','ai_minStock','ai_location','ai_supplier','ai_convW','ai_convP','ai_price'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -957,10 +1004,11 @@ function prepAddItem() {
   loadCatOptions();
 }
 
-// The pieces reference only makes sense for weighed items; the unit beside it follows the unit of measure.
+// The pieces reference only makes sense for weighed items; the units beside it and the price follow the unit of measure.
 function syncAddConv() {
   document.getElementById('ai_conv_row').style.display = document.getElementById('ai_mtype').value === 'WEIGHT' ? '' : 'none';
   document.getElementById('ai_convUnit').textContent = document.getElementById('ai_uom').value.toLowerCase();
+  document.getElementById('ai_priceUnit').textContent = document.getElementById('ai_uom').value.toLowerCase();
 }
 
 function toggleUOM() {
@@ -973,6 +1021,8 @@ async function submitAddItem() {
   var name = document.getElementById('ai_name').value.trim();
   if (!name) { showResult('addItemResult', false, 'Item name is required.'); return; }
   var wt = document.getElementById('ai_mtype').value === 'WEIGHT';
+  var priceText = document.getElementById('ai_price').value.trim();
+  if (priceText !== '' && !(Number(priceText) >= 0)) { showResult('addItemResult', false, 'The price must be a number, 0 or more.'); return; }
   var d = await api({
     api:'addItem', name:name,
     desc:     document.getElementById('ai_desc').value.trim(),
@@ -985,6 +1035,7 @@ async function submitAddItem() {
     supplier: document.getElementById('ai_supplier').value.trim(),
     convWeight: wt ? document.getElementById('ai_convW').value : '',
     convPcs:    wt ? document.getElementById('ai_convP').value : '',
+    price:      priceText,
   });
   if (d.ok) { showResult('addItemResult', true, 'Item created: ' + d.itemCode); toast('Item added ✓'); prepAddItem(); }
   else       { showResult('addItemResult', false, d.error || 'Failed.'); }
@@ -1004,6 +1055,7 @@ async function syncEditType() {
   if (!o) return;
   document.getElementById('ei_conv_row').style.display = to === 'WEIGHT' ? '' : 'none';     // the pieces reference follows the type being chosen
   document.getElementById('ei_convUnit').textContent   = typeUnit(to).toLowerCase();
+  document.getElementById('ei_priceUnit').textContent  = typeUnit(to).toLowerCase();      // the price is per unit: kg, or pcs
   if (to === o.mtype) { document.getElementById('ei_type_note').style.display = 'none'; return; }
   document.getElementById('ei_type_note').style.display = '';
   renderTypeNote();
@@ -1027,6 +1079,10 @@ function renderTypeNote() {
   } else {
     h += 'No stock or bags are recorded for this item, so nothing else changes.';
   }
+  if (o.price > 0) {                                            // the number stays, but it now means a price per another unit
+    h += '<br>The price stays as the number <strong>' + esc(inr(o.price, 4)) + '</strong>: it was per ' + o.uom.toLowerCase() + ' and will now mean per ' + typeUnit(to).toLowerCase() +
+         '. Check the Price box below and change it if it should be different.';
+  }
   document.getElementById('ei_type_text').innerHTML = h;
   document.getElementById('ei_type_ok_row').style.display = holds ? '' : 'none';
 }
@@ -1037,7 +1093,7 @@ async function editItem(code) {
   var it = d.item;
   document.getElementById('ei_code').textContent = it.code;
   document.getElementById('ei_badge').innerHTML = itemTypeBadge(it);
-  _eiOrig = { code: it.code, mtype: it.mtype, uom: it.uom, current: parseFloat(it.current) || 0 };
+  _eiOrig = { code: it.code, mtype: it.mtype, uom: it.uom, current: parseFloat(it.current) || 0, price: parseFloat(it.price) || 0 };
   _eiBags = null;
   document.getElementById('ei_mtype').value = it.mtype;
   document.getElementById('ei_type_note').style.display = 'none';
@@ -1054,6 +1110,8 @@ async function editItem(code) {
   document.getElementById('ei_convUnit').textContent   = String(it.uom || 'kg').toLowerCase();
   document.getElementById('ei_convW').value = it.convWeight > 0 ? it.convWeight : '';
   document.getElementById('ei_convP').value = it.convPcs > 0 ? it.convPcs : '';
+  document.getElementById('ei_priceUnit').textContent = String(it.uom || 'pcs').toLowerCase();
+  document.getElementById('ei_price').value = it.price > 0 ? it.price : '';
   document.getElementById('editItemResult').className = 'txn-result';
   loadCatOptions();
   setTab('editItem');
@@ -1070,7 +1128,12 @@ async function submitEditItem() {
     location: document.getElementById('ei_location').value.trim(),
     supplier: document.getElementById('ei_supplier').value.trim(),
     status:   document.getElementById('ei_status').value,
+    price:    document.getElementById('ei_price').value.trim(),                  // empty clears the price
   };
+  if (p.price !== '' && !(Number(p.price) >= 0)) {
+    showResult('editItemResult', false, 'The price must be a number, 0 or more.');
+    return;
+  }
   if (document.getElementById('ei_conv_row').style.display !== 'none') {       // weighed items: both boxes empty clears the reference
     p.convWeight = document.getElementById('ei_convW').value;
     p.convPcs    = document.getElementById('ei_convP').value;
@@ -1108,6 +1171,7 @@ async function submitEditItem() {
     document.getElementById('ei_type_ok').checked = false;
   }
   var d = await api(p);
+  if (d.ok && _eiOrig && _eiOrig.code === code) _eiOrig.price = Number(p.price) || 0;
   if (d.ok) { showResult('editItemResult', true, typeChanged ? 'Changes saved. This item is now ' + typeLabel(newType) + '.' : 'Changes saved.'); toast('Item updated ✓'); }
   else       { showResult('editItemResult', false, (typeChanged ? 'The type was changed, but the other changes were not saved: ' : '') + esc(d.error || 'Update failed.')); }
 }
@@ -2026,7 +2090,7 @@ function itemRowEl(code) {
 }
 
 function ipDetailRowHtml(code) {
-  return '<tr class="item-detail"><td colspan="10"><div class="ip" data-code="' + esc(code) + '">' + ipPanelHtml(code) + '</div></td></tr>';
+  return '<tr class="item-detail"><td colspan="12"><div class="ip" data-code="' + esc(code) + '">' + ipPanelHtml(code) + '</div></td></tr>';
 }
 
 // The panel is as wide as the visible table, so on a narrow screen it stays in view while the table scrolls sideways.
